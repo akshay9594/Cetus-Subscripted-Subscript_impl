@@ -40,7 +40,11 @@ Cetus Source to Source compiler improvements being done at University of Delawar
        c. Model taken from K.S McKinley’s paper- "Optimizing for Parallelism and Data locality".
        d. Pass can also handle symbolic loop bounds.
        My contribution was everything else besides the leglity test.
-
+       
+### 6. Under Development - Subscripted subscript Analysis Pass
+        We are currently in the process of adding the subscripted subscript analysis pass to Cetus. The algorithm
+        being implemented to perform the analysis has been decribed in detail in our ICS'21 paper titled - 
+        "On the Automatic Parallelization of Subscripted Subscript Patterns using Array Property Analysis"
 
     
     

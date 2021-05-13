@@ -1,4 +1,4 @@
-# The Cetus Project
+# The Cetus Project with Subscripted subscript analysis
 Cetus Source to Source compiler improvements being done at University of Delaware
 
 ## Bug Fixes and added features
@@ -30,7 +30,7 @@ Cetus Source to Source compiler improvements being done at University of Delawar
        the same directive as per the atest OpenMP specification. The support for the same has now been added. 
        The directive would look something like:
        
-       Eg. #pragma omp parallel for private(i) reduction(max: maxl)reduction(&: b)reduction(*: e)reduction(+: d)
+       Eg. #pragma omp parallel for private(i) reduction(max: maxl)reduction(&: b)reduction(+: d)
            Earlier Cetus would try to include all the identifiers and operators within one reduction clause.
        
 ### 5. Loop Interchange Pass Added to Cetus
@@ -40,7 +40,12 @@ Cetus Source to Source compiler improvements being done at University of Delawar
        c. Model taken from K.S McKinley’s paper- "Optimizing for Parallelism and Data locality".
        d. Pass can also handle symbolic loop bounds.
        My contribution was everything else besides the leglity test.
-
+       
+### 6. Under Development - Subscripted subscript Analysis Pass
+        We are currently in the process of adding the subscripted subscript analysis pass to Cetus. 
+        The algorithm being implemented to perform the analysis has been decribed in detail in our 
+        ICS'21 paper titled - "On the Automatic Parallelization of Subscripted Subscript Patterns 
+                               using Array Property Analysis"
 
     
     

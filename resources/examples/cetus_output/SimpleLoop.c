@@ -60,6 +60,7 @@ int main()
 	#pragma cetus reduction(+: p) 
 	for (j=0; j<n; j ++ )
 	{
+		d[j]=p;
 		#pragma cetus private(i) 
 		#pragma loop name main#0#0 
 		#pragma cetus reduction(+: p) 
@@ -77,11 +78,7 @@ int main()
 				p ++ ;
 			}
 		}
-		d[j]=p;
 	}
-	/* for( i = 0 ; i < n; i++){ */
-		/*    a[i] = i + 1; */
-	/* } */
 	#pragma cetus private(j) 
 	#pragma loop name main#1 
 	#pragma cetus parallel 

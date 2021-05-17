@@ -1,22 +1,19 @@
 
 package cetus.analysis;
-
-import cetus.exec.Driver;
 import cetus.hir.*;
-
-import java.lang.Thread.State;
 import java.util.*;
-import java.util.jar.Attributes.Name;
 
+import javax.naming.spi.DirStateFactory.Result;
 
 public class SubscriptedSubscriptAnalysis extends AnalysisPass{
-
 
     private static final String tag = "[SubscriptedSubscriptAnalysis]";
 
     private static RangeExpression increment_expression = null;
 
     private static Expression Class3_PNN_term = null;
+
+    private static Set<Symbol> Killed_symbols = new HashSet<>();
 
     private static Map<String, RangeDomain> Loop_agg_ranges = new HashMap<>();
 
@@ -103,8 +100,7 @@ private static void wrapper(CFGraph SubroutineGraph){
                     node.putData("ranges", predecessor.getData("ranges"));
 
             }
-
-            
+         
             for(DFANode successor : node.getSuccs()){
                 
                 if(successor.getData("num-visits") == null){
@@ -169,7 +165,7 @@ private static void wrapper(CFGraph SubroutineGraph){
 
                 if(i > 0){
                     DFANode Collapsed_innerloopNode = CollapseLoopinCFG(LoopControlFlowGraph, (ForLoop)Loops_in_Nest.get(i-1), null);
-                    //System.out.println("node: " + Collapsed_innerloopNode.getData("tag") + " , range: " + Collapsed_innerloopNode.getData("ranges") +"\n");
+                    System.out.println("collap node: " + Collapsed_innerloopNode.getData("tag") + " , range: " + Collapsed_innerloopNode.getData("ranges") +"\n");
                 }
 
                 //Fix Range values before loop for an inner loop in a nest
@@ -233,10 +229,10 @@ private static void wrapper(CFGraph SubroutineGraph){
         
         }
 
-        // if(node.getData("ir") != null)
-        // System.out.println("node: " + node.getData("ir") +" , range: " + node.getData("ranges") +"\n");
-        // else
-        // System.out.println("node: " + node.getData("tag") +" , range: " + node.getData("ranges") +"\n");
+        if(node.getData("ir") != null)
+        System.out.println("node: " + node.getData("ir") +" , range: " + node.getData("ranges") +"\n");
+        else
+        System.out.println("node: " + node.getData("tag") +" , range: " + node.getData("ranges") +"\n");
        
 
     }
@@ -270,7 +266,6 @@ private static void wrapper(CFGraph SubroutineGraph){
         else
             nodes_list.put((Integer) entry.getData("top-order"), entry);
             
-          
 
         List<DFANode> Nodes_to_Remove = new ArrayList<>();
         Set<DFANode> innerLoopPreds = null;
@@ -280,7 +275,7 @@ private static void wrapper(CFGraph SubroutineGraph){
         Integer LoopNestDepth = LoopTools.calculateInnerLoopNest(loop_to_collapse).size();
         Integer NumberForExits = 0;
         
-        //Traverse the CFG successor by successor
+        //Traverse the CFG successor by successor and remove the nodes of the inner loop
         
         while(nodes_list.size() > 0){
     
@@ -400,6 +395,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
 
     Map<Symbol, Expression> ArraySubscriptMap = new HashMap<Symbol,Expression>();
     Set<Symbol> LoopLVVs = null;
+    Set<Symbol> Initial_syms = null;
 
     String LoopName = LoopTools.getLoopName(input_for_loop);
    
@@ -489,16 +485,15 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                     curr_ranges.setRange(LVV, LVVexpr);
                 
                 }
-            
+
+            Initial_syms = curr_ranges.getSymbols();
         }
         
-    
         // Add initial values from declarations
         RangeAnalysis.enterScope(node, curr_ranges);
         
         RangeDomain prev_ranges = node.getData("ranges");
 
-      
         // Detected changes trigger propagation
         if (prev_ranges == null || !prev_ranges.equals(curr_ranges)) {
         
@@ -507,9 +502,18 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                 node.putData("ranges", curr_ranges);
             }
 
-            if(prev_ranges != null && !prev_ranges.equals(curr_ranges)){
+            if( curr_ranges != null && prev_ranges != null && !prev_ranges.equals(curr_ranges)){
 
-               node.putData("ranges", prev_ranges);
+               curr_ranges.kill(Killed_symbols);
+                
+                for(Symbol sym : curr_ranges.getSymbols()){
+                    Expression exp = prev_ranges.getRange(sym);
+                    if(exp != null)
+                    curr_ranges.setRange(sym, exp);
+
+                }
+                
+                node.putData("ranges", curr_ranges);
 
             }
 
@@ -541,20 +545,21 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                 }
             }
 
-        
-
         }
-
-        
 
             //Phase 2 triggered after the final node in the loop is reached
             if(node.getData("tag") != null && node.getData("tag").equals("FOREXIT")){
 
                 node.putData("array-subscripts", ArraySubscriptMap);
+              
+                RangeDomain Phase1Exprs = node.getData("ranges");
+                Set<Symbol> Final_symbols = Phase1Exprs.getSymbols();
+                Killed_symbols = symmetricDifference(Initial_syms, Final_symbols);
 
                 System.out.println("Subscripted-subscript analysis for Loop: " + LoopName + "\n" );  
-                SubSubPhasetwo(node.getData("ranges"), LoopLVVs , input_for_loop , 
+                SubSubPhasetwo(node.getData("ranges") , LoopLVVs , input_for_loop , 
                                       Prior_Ranges , node.getData("array-subscripts"));
+
 
                 Annotation loop_ant = input_for_loop.getAnnotation(PragmaAnnotation.class, "name");
                 Loop_agg_ranges.put(loop_ant.toString(), node.getData("ranges"));
@@ -573,15 +578,12 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
         // System.out.println(" node: " + node.getData("ir") +" , range: " + node.getData("ranges") +"\n");
         // else
         // System.out.println(" node: " + node.getData("tag") +" , range: " + node.getData("ranges") +"\n");
-      
-              
-        
+   
         }
-    
-    
+
+        
    
     }
-
     
     /**
      * Subscripted subscript analysis - Phase 2 begins
@@ -999,6 +1001,17 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
         }
 
         return null;
+    }
+
+    private static Set<Symbol> symmetricDifference(Set<Symbol> a, Set<Symbol> b) {
+        Set<Symbol> result = new HashSet<Symbol>(a);
+        for (Symbol element : b) {
+            // .add() returns false if element already exists
+            if (!result.add(element)) {
+                result.remove(element);
+            }
+        }
+        return result;
     }
 
 

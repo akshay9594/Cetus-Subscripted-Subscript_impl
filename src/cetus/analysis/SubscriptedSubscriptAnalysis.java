@@ -3,6 +3,10 @@ package cetus.analysis;
 import cetus.hir.*;
 import java.util.*;
 
+<<<<<<< HEAD
+=======
+import javax.naming.spi.DirStateFactory.Result;
+>>>>>>> bac98485d564c0182dc6f1b8d224d832a7e440e5
 
 public class SubscriptedSubscriptAnalysis extends AnalysisPass{
 
@@ -53,9 +57,14 @@ public class SubscriptedSubscriptAnalysis extends AnalysisPass{
      * 2. As soon as a Loop statement is encountered, Phase 1 is triggered
      * 3. The modified ranges are stored in the range dictionaries corresponding to each 
      *    statement or node in the control flow graph.   
+<<<<<<< HEAD
      * @param SubroutineGraph- Control Flow Graph of the subroutine
     */
     
+=======
+     * @param - Control Flow Graph of the subroutine
+    */
+>>>>>>> bac98485d564c0182dc6f1b8d224d832a7e440e5
 
 private static void wrapper(CFGraph SubroutineGraph){
 
@@ -598,6 +607,10 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
      * @param input_for_loop              - The loop being analyzed
      * @param RangeValsBeforeLoop  - Range dictionary of the statement immediately prior to the loop
      * @param ArraySubscripts      - Mappings of arrays to their subscript expressions
+<<<<<<< HEAD
+=======
+     * Note: This function might need to return a range dictionary
+>>>>>>> bac98485d564c0182dc6f1b8d224d832a7e440e5
      */
     
 

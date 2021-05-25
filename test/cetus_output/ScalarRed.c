@@ -1,9 +1,5 @@
 /*
-<<<<<<< HEAD
-Copyright (C) 1991-2020 Free Software Foundation, Inc.
-=======
 Copyright (C) 1991-2018 Free Software Foundation, Inc.
->>>>>>> bac98485d564c0182dc6f1b8d224d832a7e440e5
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it andor
@@ -18,11 +14,7 @@ Copyright (C) 1991-2018 Free Software Foundation, Inc.
 
    You should have received a copy of the GNU Lesser General Public
    License along with the GNU C Library; if not, see
-<<<<<<< HEAD
-   <https:www.gnu.org/licenses/>. 
-=======
    <http:www.gnu.org/licenses/>. 
->>>>>>> bac98485d564c0182dc6f1b8d224d832a7e440e5
 */
 /*
 This header is separate from features.h so that the compiler can
@@ -49,67 +41,24 @@ wchar_t uses Unicode 10.0.0.  Version 10.0 of the Unicode Standard is
    - 285 hentaigana
    - 3 additional Zanabazar Square characters
 */
-<<<<<<< HEAD
-=======
 /* We do not support C11 <threads.h>.  */
->>>>>>> bac98485d564c0182dc6f1b8d224d832a7e440e5
-/*
- Very Simple Parallelizable Loop Example
-
-*/
 int main()
 {
-	int a[30000], b[30000], c[30000], d[30000];
-	int i, n, j, count, p, x;
-	int j;
+	int a[10000], c[10000], b[10000][10000];
+	int i, j;
 	int _ret_val_0;
-	n=3000;
-	p=1;
-	count=3;
 	#pragma cetus private(i, j) 
 	#pragma loop name main#0 
-	#pragma cetus reduction(+: p) 
-	for (j=0; j<n; j ++ )
+	for (j=0; j<10000; j ++ )
 	{
-		d[j]=p;
-		#pragma cetus private(i) 
+		#pragma cetus private(j) 
 		#pragma loop name main#0#0 
-		#pragma cetus reduction(+: p) 
 		#pragma cetus parallel 
-		#pragma omp parallel for if((10000<(1L+(7L*n)))) private(i) reduction(+: p)
-		for (i=0; i<n; i ++ )
+		#pragma omp parallel for private(j)
+		for (i=0; i<10000; i ++ )
 		{
-			if (c[i]!=0)
-			{
-				b[i]=i;
-				if (x!=0)
-				{
-					a[i]=c[i];
-				}
-				p ++ ;
-			}
+			b[j][i+1]=(2*b[j][i-1]);
 		}
-	}
-	#pragma cetus private(j) 
-	#pragma loop name main#1 
-	#pragma cetus parallel 
-	#pragma omp parallel for if((10000<(1L+(5L*n)))) private(j)
-	for (j=0; j<n; j ++ )
-	{
-		if ((j%2)==0)
-		{
-			a[j]=0;
-		}
-		else
-		{
-			a[j]=1;
-		}
-	}
-	#pragma cetus private(j) 
-	#pragma loop name main#2 
-	for (j=0; j<n; j ++ )
-	{
-		a[j]=(a[j-1]+a[j]);
 	}
 	_ret_val_0=0;
 	return _ret_val_0;

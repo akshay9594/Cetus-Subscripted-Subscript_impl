@@ -45,23 +45,32 @@ wchar_t uses Unicode 10.0.0.  Version 10.0 of the Unicode Standard is
  Very Simple Parallelizable Loop Example
 
 */
+#include <stdio.h>
+#include <math.h>
 int main()
 {
 	int a[30000], b[30000], c[30000], d[30000];
-	int i, n, j, count, p, x;
+	int i, n, p, x;
 	int j;
 	int _ret_val_0;
-	n=3000;
 	p=1;
-	count=3;
-	#pragma cetus private(i, j) 
+	n=30000;
+	#pragma cetus private(i) 
 	#pragma loop name main#0 
-	#pragma cetus reduction(+: p) 
+	#pragma cetus parallel 
+	#pragma omp parallel for if((10000<(1L+(3L*n)))) private(i)
+	for (i=0; i<n; i ++ )
+	{
+		b[i]=0;
+	}
+	#pragma cetus private(i, j) 
+	#pragma loop name main#1 
+	/* #pragma cetus reduction(+: p)  */
 	for (j=0; j<n; j ++ )
 	{
 		d[j]=p;
 		#pragma cetus private(i) 
-		#pragma loop name main#0#0 
+		#pragma loop name main#1#0 
 		#pragma cetus reduction(+: p) 
 		#pragma cetus parallel 
 		#pragma omp parallel for if((10000<(1L+(7L*n)))) private(i) reduction(+: p)
@@ -78,8 +87,9 @@ int main()
 			}
 		}
 	}
+	x=100;
 	#pragma cetus private(j) 
-	#pragma loop name main#1 
+	#pragma loop name main#2 
 	#pragma cetus parallel 
 	#pragma omp parallel for if((10000<(1L+(5L*n)))) private(j)
 	for (j=0; j<n; j ++ )
@@ -94,7 +104,7 @@ int main()
 		}
 	}
 	#pragma cetus private(j) 
-	#pragma loop name main#2 
+	#pragma loop name main#3 
 	for (j=0; j<n; j ++ )
 	{
 		a[j]=(a[j-1]+a[j]);

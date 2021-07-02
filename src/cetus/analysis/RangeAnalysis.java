@@ -1238,16 +1238,17 @@ public class RangeAnalysis extends AnalysisPass
             }
         
         }
-        // else if (!((node_data = node.getData("assign-to"))
-        //             instanceof Identifier)) {                                                       
-        //     // Kills ranges containing non-identifiers that modified at this
-        //     // node.
+        //Would need to handle the case where node_data is NameID
+        else if (!((node_data = node.getData("assign-to"))
+                    instanceof Identifier)) {                                                       
+            // Kills ranges containing non-identifiers that are modified at this
+            // node.
 
-        //     if(direction.equals("kill")){
-        //         ranges_out.removeRangeWith( SymbolTools.getSymbolOf((Expression)node_data));
-        //     }
+            if(direction.equals("kill")){
+                ranges_out.removeRangeWith( SymbolTools.getSymbolOf((Expression)node_data));
+            }
         
-        // }
+        }
         
         else if (!direction.equals("nochange")) {
         
@@ -1558,6 +1559,7 @@ public class RangeAnalysis extends AnalysisPass
     * @return the associated range domain.
     */
     public static RangeDomain query(Statement stmt) {
+        
         RangeDomain ret = range_domains.get(stmt);
         if (ret == null) {
             Procedure proc = stmt.getProcedure();

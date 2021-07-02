@@ -3,8 +3,10 @@
      With 1000 iterations, the sequantial loop executes in less than 
       
 */
-
-int main(){
+#include "stdio.h"
+#include "math.h"
+int main()
+{
 
   float a[1000], b[1000];
   int i;
@@ -12,6 +14,6 @@ int main(){
   for (i=1; i<1000; i++) {
     a[i]= b[i];
   }
-	
+	printf("i = %d\n", i);
    return 0;
 }

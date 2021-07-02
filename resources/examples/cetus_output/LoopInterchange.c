@@ -1,5 +1,5 @@
 /*
-Copyright (C) 1991-2018 Free Software Foundation, Inc.
+Copyright (C) 1991-2020 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it andor
@@ -14,7 +14,7 @@ Copyright (C) 1991-2018 Free Software Foundation, Inc.
 
    You should have received a copy of the GNU Lesser General Public
    License along with the GNU C Library; if not, see
-   <http:www.gnu.org/licenses/>. 
+   <https:www.gnu.org/licenses/>. 
 */
 /*
 This header is separate from features.h so that the compiler can
@@ -41,7 +41,6 @@ wchar_t uses Unicode 10.0.0.  Version 10.0 of the Unicode Standard is
    - 285 hentaigana
    - 3 additional Zanabazar Square characters
 */
-/* We do not support C11 <threads.h>.  */
 /*
 
 
@@ -58,6 +57,8 @@ int main()
 	int _ret_val_0;
 	n=10000;
 	r=1000;
+	/* n = 10000; */
+	/* r = 1000; */
 	#pragma loop name main#0 
 	#pragma cetus private(i, j) 
 	for (i=0; i<10000; i ++ )
@@ -80,6 +81,8 @@ int main()
 	{
 		#pragma loop name main#1#0 
 		#pragma cetus private(k) 
+		#pragma cetus parallel 
+		#pragma omp parallel for private(k)
 		for (k=0; k<10000; k ++ )
 		{
 			work[j][k][3]=((coef2[j][k]*work[j][k][1])-(coef4[j][k]*work[j][k][2]));
@@ -117,8 +120,10 @@ int main()
 		for (k=0; k<n; k ++ )
 		{
 			#pragma loop name main#3#0#0 
-			/* #pragma cetus reduction(+: d[i][j])  */
+			#pragma cetus reduction(+: d[i][j]) 
 			#pragma cetus private(j) 
+			#pragma cetus parallel 
+			#pragma omp parallel for if((10000<(1L+(3L*m)))) private(j) reduction(+: d[i][j])
 			for (j=0; j<m; j ++ )
 			{
 				d[i][j]=(d[i][j]+(a[i][k]*b[k][j]));
@@ -133,6 +138,8 @@ int main()
 	{
 		#pragma loop name main#4#0 
 		#pragma cetus private(i) 
+		#pragma cetus parallel 
+		#pragma omp parallel for if((10000<(1L+(3L*n)))) private(i)
 		for (i=0; i<n; i ++ )
 		{
 			a[j][i]=(0.2*((((b[j][i]+b[j-1][i])+b[j][i-1])+b[j+1][i])+b[j][i+1]));

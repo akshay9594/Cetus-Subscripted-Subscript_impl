@@ -62,8 +62,6 @@ public class Reduction extends AnalysisPass {
 
     private int option;
 
-    private Expression loop_index;
-
     List<Expression> LoopNestIndices = new ArrayList<>();
 
     private static final String pass_name = "[Reduction]";
@@ -93,7 +91,6 @@ public class Reduction extends AnalysisPass {
                 new DFIterator<ForLoop>(program, ForLoop.class);
         while (iter.hasNext()) {
 
-
             ForLoop loop = iter.next();
 
             LinkedList<Loop> innerLoopList = LoopTools.calculateInnerLoopNest(loop);
@@ -104,19 +101,21 @@ public class Reduction extends AnalysisPass {
 
                 while(innerLoopListiter.hasNext()){
 
-                    ForLoop innerLoop = (ForLoop)innerLoopListiter.next();
+                    Loop l = (Loop)innerLoopListiter.next();
 
-                    Expression id = LoopTools.getIndexVariable(innerLoop);
+                    if(l instanceof ForLoop){
+                        ForLoop innerLoop = (ForLoop)l;
 
-                    if(!LoopNestIndices.contains(id))
-                        LoopNestIndices.add(id);
+                        Expression id = LoopTools.getIndexVariable(innerLoop);
+
+                        if(!LoopNestIndices.contains(id))
+                            LoopNestIndices.add(id);
+                    
+                    }
 
                 }
             }
 
-
-            BinaryExpression b = (BinaryExpression)loop.getCondition();
-            loop_index = b.getLHS();
             // find reduction variables in a loop
             Map<String, Set<Expression>> reduce_map = analyzeStatement(loop);
             // Insert reduction Annotation to the current loop
@@ -126,6 +125,7 @@ public class Reduction extends AnalysisPass {
                 loop.annotateBefore(note);
             }
         }
+
     }
 
     public void displayMap(Map<Symbol, Set<Integer>> imap, String name) {
@@ -154,16 +154,6 @@ public class Reduction extends AnalysisPass {
     // and a Statement
     public Map<String, Set<Expression>> analyzeStatement(Statement istmt) {
         debug_tab++;
-
-        Expression loopid = null;
-
-        if(istmt instanceof ForLoop){
-
-            ForLoop current_loop = (ForLoop)istmt;
-
-            loopid = LoopTools.getIndexVariable(current_loop);
-
-        }
 
         if (debug_level > 1) {
             System.out.println(
@@ -200,7 +190,6 @@ public class Reduction extends AnalysisPass {
             PrintTools.printlnStatus(9, pass_name, "[expr]", ++expr_cnt, ":",
                     expr, "(", expr.getClass().getName(), ")");
             if (expr instanceof AssignmentExpression) {
-                
                 AssignmentExpression assign_expr = (AssignmentExpression)expr;
                 findReduction(assign_expr, rmap, cmap);
             } else if (expr instanceof UnaryExpression) {
@@ -301,7 +290,7 @@ public class Reduction extends AnalysisPass {
             Expression tempexpr = expriter.next();
 
              if( tempexpr instanceof ConditionalExpression ){
-               
+                          
                 ConditionalExpression cond_expr = (ConditionalExpression)tempexpr;
 
                 if(!cond_expr.equals(null) ){
@@ -615,9 +604,6 @@ public class Reduction extends AnalysisPass {
         UnaryOperator unary_op = expr.getOperator();
         Expression lhse = expr.getExpression();
         String reduction_op = null;
-
-
-           // System.out.println("lhse : " + lhse +" , expr: " + expr +" , indices : " + LoopNestIndices);
         
 
         if (lhse instanceof IDExpression || lhse instanceof ArrayAccess ||
@@ -696,9 +682,6 @@ public class Reduction extends AnalysisPass {
                        (assign_op == AssignmentOperator.SUBTRACT)) {
                 // case: lhse += expr; or lhse -= expr; 
                 lhse_removed_rhse = Symbolic.simplify(rhse);
-                if (lhse_removed_rhse == null) {
-                    System.out.println("[+= or -=] rhse_removed_rhse is null");
-                }
                 reduction_op = "+";
             } else if (assign_op == AssignmentOperator.MULTIPLY) {
                 // case: lhse *= expr;
@@ -753,7 +736,7 @@ public class Reduction extends AnalysisPass {
                     }
                 }
 
-               // lhse = base_array_name;
+               lhse = base_array_name;
             } else if (lhse instanceof AccessExpression) {
                 Symbol lhs_symbol = SymbolTools.getSymbolOf(lhse);
                 if (!IRTools.containsSymbol(lhse_removed_rhse, lhs_symbol)) {
@@ -944,6 +927,13 @@ public class Reduction extends AnalysisPass {
 
         Expression lhs_cond_expr = null;
         Expression rhs_cond_expr = null;
+
+
+        if(!(true_expr instanceof Expression) || !(false_expr instanceof Expression))
+            return;
+
+        if(true_expr instanceof ConditionalExpression || false_expr instanceof ConditionalExpression)
+            return;
         
 
         for( i = 0 ; i < expr.getChildren().size(); i++){
@@ -953,6 +943,9 @@ public class Reduction extends AnalysisPass {
 
         }
 
+        if(!(expr.getParent() instanceof AssignmentExpression))
+            return;
+            
         AssignmentExpression reduction_parent = (AssignmentExpression)expr.getParent();
 
 

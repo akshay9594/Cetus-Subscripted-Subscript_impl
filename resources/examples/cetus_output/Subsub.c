@@ -1,5 +1,5 @@
 /*
-Copyright (C) 1991-2018 Free Software Foundation, Inc.
+Copyright (C) 1991-2020 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it andor
@@ -14,7 +14,7 @@ Copyright (C) 1991-2018 Free Software Foundation, Inc.
 
    You should have received a copy of the GNU Lesser General Public
    License along with the GNU C Library; if not, see
-   <http:www.gnu.org/licenses/>. 
+   <https:www.gnu.org/licenses/>. 
 */
 /*
 This header is separate from features.h so that the compiler can
@@ -41,53 +41,77 @@ wchar_t uses Unicode 10.0.0.  Version 10.0 of the Unicode Standard is
    - 285 hentaigana
    - 3 additional Zanabazar Square characters
 */
-/* We do not support C11 <threads.h>.  */
-int x = 1;
-float y = 0.0;
+/*
+ Very Simple Parallelizable Loop Example
+
+*/
+#include <stdio.h>
+#include <math.h>
 int main()
 {
-	int a[10000], c[10000];
-	int b, i, maxl, minl, d, e;
-	int x1, x2, t1, t2, t3, t4, l, sx, sy;
-	int j;
+	int a[30000], b[30000], c[30000], d[30000];
+int Ax[30000] = {0}, s[30000] = {0};
+	int i, n, p, x;
+	int j, k;
 	int _ret_val_0;
-	b=1;
-	maxl=1;
-	minl=1000;
+	p=1;
+	n=30000;
 	#pragma cetus private(i) 
 	#pragma loop name main#0 
-	#pragma cetus reduction(max: maxl) reduction(&: b) reduction(*: e) reduction(+: d) 
 	#pragma cetus parallel 
-	#pragma omp parallel for private(i) reduction(max: maxl)reduction(&: b)reduction(*: e)reduction(+: d)
-	for (i=0; i<10000; i ++ )
+	#pragma omp parallel for if((10000<(1L+(3L*n)))) private(i)
+	for (i=0; i<n; i ++ )
 	{
-		b&=a[i];
-		d+=a[i];
-		e*=a[i];
-		maxl=((maxl>a[i]) ? maxl : a[i]);
+		b[i]=0;
 	}
-	#pragma cetus private(j) 
+	#pragma cetus private(i, j) 
 	#pragma loop name main#1 
-	#pragma cetus reduction(max: maxl) 
-	#pragma cetus parallel 
-	#pragma omp parallel for private(j) reduction(max: maxl)
-	for (j=0; j<10000; j ++ )
+	/* #pragma cetus reduction(+: p)  */
+	for (j=0; j<n; j ++ )
 	{
-		if (a[j]>maxl)
+		d[j]=p;
+		#pragma cetus private(i) 
+		#pragma loop name main#1#0 
+		#pragma cetus reduction(+: p) 
+		#pragma cetus parallel 
+		#pragma omp parallel for if((10000<(1L+(7L*n)))) private(i) reduction(+: p)
+		for (i=0; i<n; i ++ )
 		{
-			maxl=a[j];
+			if (c[i]!=0)
+			{
+				b[i]=i;
+				if (x!=0)
+				{
+					a[i]=c[i];
+				}
+				p ++ ;
+			}
 		}
-		/* c[i] = minl; */
 	}
-	#pragma cetus private(i) 
+	#pragma cetus private(j, k) 
 	#pragma loop name main#2 
-	#pragma cetus reduction(min: minl) 
+	#pragma cetus reduction(*: Ax) 
 	#pragma cetus parallel 
-	#pragma omp parallel for private(i) reduction(min: minl)
-	for (i=0; i<10000; i ++ )
+	#pragma omp parallel for private(j, k) reduction(*: Ax)
+	for (j=0; j<n; j ++ )
 	{
-		minl=((minl<a[i]) ? minl : a[i]);
+		#pragma cetus private(k) 
+		#pragma loop name main#2#0 
+		/* #pragma cetus reduction(: Ax)  */
+		for (k=d[j]; k<d[j+1]; k ++ )
+		{
+			Ax[k]=(Ax[k]*s[j]);
+		}
 	}
+	/* for(j=0 ; j < n; j++) { */
+		/*      if(j%2 ==0) */
+		/*        a[j] = 0; */
+		/*       else */
+		/*        a[j] = 1; */
+	/*   } */
+	/*   for(j=0 ; j<n; j++) { */
+		/*      a[j] = a[j-1] + a[j]; */
+	/*   } */
 	_ret_val_0=0;
 	return _ret_val_0;
 }

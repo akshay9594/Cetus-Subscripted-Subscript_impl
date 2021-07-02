@@ -1,5 +1,5 @@
 /*
-Copyright (C) 1991-2018 Free Software Foundation, Inc.
+Copyright (C) 1991-2020 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it andor
@@ -14,7 +14,7 @@ Copyright (C) 1991-2018 Free Software Foundation, Inc.
 
    You should have received a copy of the GNU Lesser General Public
    License along with the GNU C Library; if not, see
-   <http:www.gnu.org/licenses/>. 
+   <https:www.gnu.org/licenses/>. 
 */
 /*
 This header is separate from features.h so that the compiler can
@@ -41,52 +41,31 @@ wchar_t uses Unicode 10.0.0.  Version 10.0 of the Unicode Standard is
    - 285 hentaigana
    - 3 additional Zanabazar Square characters
 */
-/* We do not support C11 <threads.h>.  */
 /*
-Examples of Loops with Induction Variables
-
-  The first loop includes a basic, linear induction variable ind.  
-
-  The second loop includes a more generalized induction variable, which uses a
-  linear induction variable as the increment.
-
+ Non-profitable Parallel Loop:
+     This loop could be parallelized but has only a small number of iterations.
+     With 1000 iterations, the sequantial loop executes in less than 
+      
 
 */
+#include "stdio.h"
+#include "math.h"
 int main()
 {
-	float a[10000], b[10000];
-	int i, n, ind, ind2;
+	float a[1000], b[1000];
+	int i;
 	int _ret_val_0;
-	n=10000;
-	ind=123;
-	#pragma cetus private(i) 
+	#pragma cetus lastprivate(i) 
 	#pragma loop name main#0 
 	#pragma cetus parallel 
-	#pragma omp parallel for if((10000<(-2L+(3L*n)))) private(i)
-	for (i=1; i<n; i ++ )
+	/*
+	Disabled due to low profitability: #pragma omp parallel for lastprivate(i)
+	*/
+	for (i=1; i<1000; i ++ )
 	{
-		a[123+(2*i)]=b[i];
+		a[i]=b[i];
 	}
-	if ((-2+n)>=0)
-	{
-		ind+=(-2+(2*n));
-	}
-	ind2=5;
-	ind=234;
-	#pragma cetus private(i) 
-	#pragma loop name main#1 
-	for (i=1; i<n; i ++ )
-	{
-		a[(5+(235*i))+(i*i)]=b[i];
-	}
-	if ((-2+n)>=0)
-	{
-		ind2+=((-234+(233*n))+(n*n));
-	}
-	if ((-2+n)>=0)
-	{
-		ind+=(-2+(2*n));
-	}
+	printf("i = %d\n", i);
 	_ret_val_0=0;
 	return _ret_val_0;
 }

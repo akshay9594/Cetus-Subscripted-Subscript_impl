@@ -1,5 +1,6 @@
 package cetus.analysis;
 
+import cetus.analysis.Section.MAP;
 import cetus.hir.*;
 import java.util.*;
 
@@ -66,7 +67,7 @@ public class DDTDriver extends AnalysisPass {
 
         alias_analysis = new AliasAnalysis(program);
         AnalysisPass.run(alias_analysis);
-
+ 
         // Obtain a list of loops that enclose eligible nests for dependence
         // testing
 

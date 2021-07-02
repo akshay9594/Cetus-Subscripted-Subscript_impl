@@ -15,7 +15,7 @@ int main(){
 
   for( i = 0 ; i < 10000 ;i++){
 
-    b = b || a[i];
+    b = b + a[i];
   }
 
 

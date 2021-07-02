@@ -340,7 +340,7 @@ public class Driver {
                      "Exchanges the order of two iteration variables used by a nested loop");
         
         options.add(options.ANALYSIS,
-                     "subscripted-subscript-analysis", 
+                     "subscripted_subscript_analysis", 
                       "Performs subscripted subscript analysis on the program");
     }
 
@@ -795,7 +795,7 @@ public class Driver {
         if (getOptionValue("privatize") != null && !getOptionValue("privatize").equals("0")) {
             AnalysisPass.run(new ArrayPrivatization(program));
         }
-        if (getOptionValue("subscripted-subscript-analysis") != null) {
+        if (getOptionValue("subscripted_subscript_analysis") != null) {
             AnalysisPass.run(new SubscriptedSubscriptAnalysis(program));
         }
       

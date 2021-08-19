@@ -41,6 +41,8 @@ package cetus.analysis;
 
 import cetus.exec.Driver;
 import cetus.hir.*;
+
+import java.sql.Ref;
 import java.util.*;
 
 
@@ -89,6 +91,7 @@ public class Reduction extends AnalysisPass {
 */
         DFIterator<ForLoop> iter =
                 new DFIterator<ForLoop>(program, ForLoop.class);
+        
         while (iter.hasNext()) {
 
             ForLoop loop = iter.next();
@@ -120,9 +123,10 @@ public class Reduction extends AnalysisPass {
             Map<String, Set<Expression>> reduce_map = analyzeStatement(loop);
             // Insert reduction Annotation to the current loop
             if (!reduce_map.isEmpty()) {
-                CetusAnnotation note =
-                        new CetusAnnotation("reduction", reduce_map);
-                loop.annotateBefore(note);
+                
+                    CetusAnnotation note =
+                            new CetusAnnotation("reduction", reduce_map);
+                    loop.annotateBefore(note);
             }
         }
 
@@ -192,8 +196,7 @@ public class Reduction extends AnalysisPass {
             if (expr instanceof AssignmentExpression) {
                 AssignmentExpression assign_expr = (AssignmentExpression)expr;
                 findReduction(assign_expr, rmap, cmap);
-            } else if (expr instanceof UnaryExpression) {
-                
+            } else if (expr instanceof UnaryExpression) {  
                 UnaryExpression unary_expr = (UnaryExpression)expr;
                 findReduction(unary_expr, rmap, cmap);
             } else if (expr instanceof FunctionCall) {
@@ -208,16 +211,9 @@ public class Reduction extends AnalysisPass {
         }
 
 
-
-       // System.out.println( "loop:\n" + istmt + "\n" + "rmap: " + rmap + "\n");
-
     //Following code block is for detecting possible MIN or MAX reductions in if-statements
 
-
-        ArrayList<BinaryExpression> IfExprList = new ArrayList<BinaryExpression>();
         ArrayList<Expression> LoopExprList = new ArrayList<Expression>();
-
-
         DFIterator<Expression> loopexpriter =
         new DFIterator<Expression>(istmt, Expression.class);
 
@@ -226,57 +222,9 @@ public class Reduction extends AnalysisPass {
 
             Expression loopexpr = loopexpriter.next();
 
-            if( loopexpr instanceof BinaryExpression || 
-                loopexpr instanceof UnaryExpression ||
-                loopexpr instanceof ConditionalExpression )
+            if(loopexpr instanceof ConditionalExpression )
 
                 LoopExprList.add(loopexpr);
-
-        }
-
-
-        DFIterator<IfStatement> it =
-        new DFIterator<IfStatement>(istmt, IfStatement.class);
-
-
-        IfStatement ifstmt = null;
-
-        while(it.hasNext()){
-
-            ifstmt =  it.next();
-
-        }
-
-
-        BinaryExpression ifCondition = null;
-
-
-        if(ifstmt != null){
-
-            DFIterator<Expression> Ifexpressioniter = new DFIterator<Expression>(ifstmt , Expression.class);
-
-            while(Ifexpressioniter.hasNext()){
-
-                Expression ifexpr = Ifexpressioniter.next();
-
-                if(ifexpr instanceof BinaryExpression){
-
-                    BinaryExpression ifbe = (BinaryExpression)ifexpr;
-
-                    if(ifbe.getOperator().toString().equals(">") || ifbe.getOperator().toString().equals("<")){
-
-                        ifCondition = ifbe;
-                    }
-                    else
-                        IfExprList.add(ifbe);
-
-
-                }
-
-            }
-
-            if(ifCondition!= null)
-            findReduction(ifCondition, LoopExprList ,IfExprList ,rmap, cmap);
 
         }
 
@@ -302,8 +250,7 @@ public class Reduction extends AnalysisPass {
 
         }
 
-
-      
+       
         // if the lhse of the reduction candidate statement is not in the
         // RefMap, lhse is a reduction variable
         displayMap(RefMap, "RefMap");
@@ -315,16 +262,15 @@ public class Reduction extends AnalysisPass {
                 Symbol candidate_symbol = SymbolTools.getSymbolOf(candidate);
                 Set<Integer> reduceSet = cmap.get(candidate_symbol);
                 Set<Integer> referenceSet = RefMap.get(candidate_symbol);
+                
                 if (referenceSet == null) {
                     continue;
                 }
-                referenceSet.removeAll(reduceSet);
+               
+                referenceSet.removeAll(reduceSet); 
             }
         }
 
-    
-        //System.out.println("Return Ref Map: " + RefMap +"\n");
-       
 
         // final reduction map that maps a reduction operator to a set of
         // reduction variables
@@ -339,12 +285,11 @@ public class Reduction extends AnalysisPass {
                 if (RefMap.get(candidate_symbol) == null) {
                     continue;
                 }
-                // if (!RefMap.get(candidate_symbol).isEmpty() && !op.equals("max") && !op.equals("min")) {                // Reference of min max candidate are checked in find_reduction
-                //     PrintTools.printlnStatus(2, pass_name, candidate,                                                   // for min , max
-                //             "is referenced in the non-reduction statement!");
-                //             System.out.println("candidate: " + candidate +" , min max\n");
-                //     remove_flag = true;
-                // }
+                if (!RefMap.get(candidate_symbol).isEmpty() && !op.equals("max") && !op.equals("min")) {                
+                    PrintTools.printlnStatus(2, pass_name, candidate,                                                  
+                            "is referenced in the non-reduction statement!");
+                    remove_flag = true;
+                }
 
                 if(LoopNestIndices.contains(candidate)){
 
@@ -401,18 +346,21 @@ public class Reduction extends AnalysisPass {
                                 "No self-carried-output dependence in",
                                 candidate);
                         remove_flag = true;
-                        //System.out.println("candidate: " + candidate +" , has self-output dependence\n");
+                        
                     }
                     if (option == SCALAR_REDUCTION) {
                         remove_flag = true;
-                       // System.out.println("candidate: " + candidate +" , scalar reduction\n");
+                       
                     }
                 }
                 if (remove_flag == false) {
+                    // if(candidate instanceof ArrayAccess){
+                    //     candidate = ((ArrayAccess)candidate).getArrayName();
+                    // }
                     if (fmap.containsKey(op)) {
                         fmap.get(op).add(candidate);
                     } else {
-                        Set<Expression> new_set = new HashSet<Expression>();
+                        Set<Expression> new_set = new HashSet<Expression>();                            
                         new_set.add(candidate);
                         fmap.put(op, new_set);
                     }
@@ -425,8 +373,6 @@ public class Reduction extends AnalysisPass {
                     "------------ analyzeStatement done ------------\n");
         }
         debug_tab--;
-
-        //System.out.println("\nfmap:\n" + fmap +"\n");
 
 
         return fmap;
@@ -631,6 +577,7 @@ public class Reduction extends AnalysisPass {
     private void findReduction(AssignmentExpression expr,
                                Map<String, Set<Expression>> rmap,
                                Map<Symbol, Set<Integer>> cmap) {
+
         boolean isReduction = false;
         AssignmentOperator assign_op = expr.getOperator();
         Expression lhse = expr.getLHS();
@@ -671,7 +618,11 @@ public class Reduction extends AnalysisPass {
                     } else {
                         // Added support for logical and bitwise operators : {&& , || , & ,| , ^}
                        
-                        lhse_removed_rhse = Symbolic.subtract(rhse, lhse,true);  
+                        if(reduction_op.equals("&&") || reduction_op.equals("||") ||
+                           reduction_op.equals("&") || reduction_op.equals("|") ||
+                           reduction_op.equals("^") )
+
+                            lhse_removed_rhse = Symbolic.subtract(rhse, lhse,true);  
                        
                     }
                 } else {
@@ -736,7 +687,7 @@ public class Reduction extends AnalysisPass {
                     }
                 }
 
-               lhse = base_array_name;
+               //lhse = base_array_name;
             } else if (lhse instanceof AccessExpression) {
                 Symbol lhs_symbol = SymbolTools.getSymbolOf(lhse);
                 if (!IRTools.containsSymbol(lhse_removed_rhse, lhs_symbol)) {
@@ -784,8 +735,6 @@ public class Reduction extends AnalysisPass {
 
         }
 
-
-
         String reduction_operator = null;
         boolean isreduction = false;
         Expression condlhs = condexpr.getLHS();
@@ -798,8 +747,6 @@ public class Reduction extends AnalysisPass {
         condrhs = Symbolic.simplify(condrhs);
 
         // Loop to check the if-condition. If the if-condition contains the loop index or an integer, return.
-
-      
 
 
         for( i = 0 ; i < Ifexprlist.size() ;i++){

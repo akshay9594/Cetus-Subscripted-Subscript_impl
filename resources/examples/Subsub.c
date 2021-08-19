@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <math.h>
+#include <stdlib.h>
 
 #define N 30000
 
@@ -49,20 +50,20 @@ int main(){
 
    }
 
-// for(j=0 ; j < n; j++) {
+for(j=0 ; j < n; j++) {
 
-//      if(j%2 ==0)
-//        a[j] = 0;
-//       else
-//        a[j] = 1;
+     if(j%2 ==0)
+       a[j] = 0;
+      else
+       a[j] = 1;
      
-//   }
+  }
 
-//   for(j=0 ; j<n; j++) {
+  for(j=0 ; j<n; j++) {
 
-//      a[j] = a[j-1] + a[j];
+     a[j] = a[j-1] + a[j];
      
-//   }
+  }
  
   
 	

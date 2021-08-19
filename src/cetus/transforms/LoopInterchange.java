@@ -1,3 +1,4 @@
+
 package cetus.transforms;
 
 import cetus.analysis.AliasAnalysis;
@@ -7,8 +8,8 @@ import cetus.analysis.DDGraph;
 import cetus.analysis.DDTDriver;
 import cetus.analysis.DependenceVector;
 import cetus.analysis.LoopTools;
-
-
+import cetus.analysis.RangeAnalysis;
+import cetus.analysis.RangeDomain;
 import cetus.hir.*;
 
 
@@ -18,19 +19,11 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 
 
 /**
- * Exchange loops in a loop nest if they are perfectly nested.
- * <p>
- * Two important parts of the algorithm are:
- * (a) the legality of interchange and
- * (b) the profitability of loop interchange
- * It is legal to interchange two loops if the data dependencies will be preserved even after interchange.
- * The Reusability test determines if interchanging two loops will be profitable in terms of cache usage.
- * Interchanging two loops is profitable it leads to reduced cache usage i.e. increased cache reuse.
- * The profitability model has been taken from K.S. Mckinley's 1992 paper - 'Optimizing for parallelism and data locality'
- * <p>
+ * Exchange loops if they are perfect nested loop.
  */
 
 
@@ -41,11 +34,17 @@ public class LoopInterchange extends TransformPass
 
     List Loop_ref_cost = new ArrayList<>();
 
+    Boolean SymbolicIter;
+
     public LoopInterchange(Program program)
     {
         super(program);
     }
 
+    
+    /** 
+     * @return String
+     */
     public String getPassName()
     {
         return new String("[LoopInterchange]");
@@ -65,8 +64,7 @@ public class LoopInterchange extends TransformPass
         int target_loops = 0;
         int num_single = 0, num_non_perfect = 0, num_contain_func = 0, num_loop_interchange=0;
              
-        HashMap<ForLoop,Boolean> loopMap = new HashMap<ForLoop,Boolean>();
-        HashMap<ForLoop,Boolean> AlreadyInOrder = new HashMap<ForLoop,Boolean>();
+        HashMap<ForLoop,String> loopMap = new HashMap<ForLoop,String>();
 
         while(iter.hasNext()) {
             Object o = iter.next();
@@ -79,6 +77,11 @@ public class LoopInterchange extends TransformPass
 
             ForLoop l = (ForLoop)outer_loops.get(i);
 
+            //Exclude loops with negative stride
+            if(LoopTools.getIncrementExpression(l).toString().equals("-1") ){
+                loopMap.put(l, "NegativeIncrement");
+                outer_loops.remove(l);
+            }
             CetusAnnotation annotation = l.getAnnotation(CetusAnnotation.class, "private");
             l.getAnnotations().remove(annotation);
         }
@@ -113,10 +116,12 @@ public class LoopInterchange extends TransformPass
             }
             if(loops.size() < 2) {
                 num_single++;
-            }    else if(!LoopTools.isPerfectNest((ForLoop)loops.get(0))) {
+            }else if(!LoopTools.isPerfectNest((ForLoop)loops.get(0))) {
                 num_non_perfect++;
-            }    else if(LoopTools.containsFunctionCall((ForLoop)loops.get(0))) {
+                loopMap.put((ForLoop)loops.get(0), "non-perfect");
+            }else if(LoopTools.containsFunctionCall((ForLoop)loops.get(0))) {
                 num_contain_func++;
+                loopMap.put((ForLoop)loops.get(0), "Function-call");
             } else {
                 target_loops++;
                 Statement stm = ((ForLoop)loops.get(loops.size()-1)).getBody();
@@ -151,7 +156,23 @@ public class LoopInterchange extends TransformPass
 
                 */
 
-               
+
+                HashMap LoopNestIterMap = LoopIterationMap(loops.get(0));
+
+                if(HasSymbolicBounds(LoopNestIterMap)){
+                    SymbolicIter = true;
+                 }
+                 else if(HasNonSymbolicBounds(LoopNestIterMap))
+                 {
+                    SymbolicIter = false;
+          
+                 }
+                 else{
+                     loopMap.put((ForLoop)loops.get(0), "ComplexBounds");
+                     continue;
+                 }
+
+            
                 List<Expression> MemoryOrder = ReusabilityAnalysis(program , loops.get(0), LoopAssnExprs , arrays , loops);
 
 
@@ -159,7 +180,7 @@ public class LoopInterchange extends TransformPass
              
                 if(OriginalLoopOrder.equals(MemoryOrder)){
 
-                    AlreadyInOrder.put((ForLoop)loops.get(0), true);
+                    loopMap.put((ForLoop)loops.get(0), "AlreadyInOrder");
                     continue;
                 }
 
@@ -193,7 +214,6 @@ OuterWhileLoop:
     
                         rank.remove(rank.indexOf(r));
                 
-
                         if(expList.size() < until) until = expList.size();
 
 
@@ -222,22 +242,10 @@ OuterWhileLoop:
                                         PermutedLoopOrder.add(LoopTools.getIndexVariable(loops.get(q)));
 
                                     }
-                                    
-                            
-                                    /*
-
-                                    For a Loop Nest of any depth, the innermost loop should not be parallelized under any scenario for
-                                    profitability. The profitability test needs to recognize this. Currently, for a loop nest of depth 2,
-                                    the the loop parallelization pass is trying to parallelize the innermost loop if the outermost loops
-                                    is not parallelizable. This needs to be changed.
-
-                                    */
 
 
                                     if(PermutedLoopOrder.equals(MemoryOrder)){
-                    
-
-                                        loopMap.put(l, true); 
+                                        loopMap.put(l, "Permuted"); 
                                         icFlag = false;
                                         break OuterWhileLoop;
                                     
@@ -257,7 +265,7 @@ OuterWhileLoop:
 
                 if(PermutedLoopOrder.equals(OriginalLoopOrder) ||
                    PermutedLoopOrder.isEmpty())
-                loopMap.put((ForLoop)loops.get(0), false);
+                loopMap.put((ForLoop)loops.get(0), "Non-Permuted");
             }
 
 
@@ -274,26 +282,54 @@ OuterWhileLoop:
 
             if(loopMap.containsKey(forloop)){      
                 
-                if(loopMap.get(forloop)){
+                if((loopMap.get(forloop)).equals("Permuted")){
 
                     System.out.println("[LoopInterchange] Loops in nest: " + LoopTools.getLoopName(forloop) +
                                     " have been Interchanged"+"\n");
 
                 }
 
-                else 
+                else if( (loopMap.get(forloop)).equals("Non-Permuted") )
                     System.out.println("[LoopInterchange] Loops in nest: " + LoopTools.getLoopName(forloop) +
                                     " cannot be Interchanged"+"\n");
 
+                else if((loopMap.get(forloop)).equals("AlreadyInOrder")){
+
+                    System.out.println("[LoopInterchange] Loops in nest: " + LoopTools.getLoopName(forloop) + 
+                    " Already in desired order\n");
+
+                }
+
+                else if((loopMap.get(forloop)).equals("NegativeIncrement")){
+
+                    System.out.println("[LoopInterchange] Loops in nest: " + LoopTools.getLoopName(forloop) + 
+                    " Have negative increment expression;Cannot perform Interchange\n");
+
+                }
+
+                else if((loopMap.get(forloop)).equals("ComplexBounds")){
+
+                    System.out.println("[LoopInterchange] Loops in nest: " + LoopTools.getLoopName(forloop) + 
+                    " have complex bound expressions;Cannot perform Interchange\n");
+
+                }
+                else if((loopMap.get(forloop)).equals("non-perfect")){
+
+                    System.out.println("[LoopInterchange] Loops in nest: " + LoopTools.getLoopName(forloop) + 
+                    " are imprefectly nested;Cannot perform Interchange\n");
+
+                }
+                
+                else if((loopMap.get(forloop)).equals("Function-call")){
+
+                    System.out.println("[LoopInterchange] Loops in nest: " + LoopTools.getLoopName(forloop) + 
+                    " contain function call;Cannot perform Interchange\n");
+
+                }
+
             }
 
-            else if(AlreadyInOrder.containsKey(forloop)){
-
-                System.out.println("[LoopInterchange] Loops in nest: " + LoopTools.getLoopName(forloop) + 
-                                    " Already in desired order\n");
-
-            }
-
+           
 
         }
 
@@ -311,6 +347,12 @@ OuterWhileLoop:
         return;
     }
 
+    
+    /** 
+     * @param rank
+     * @param loops
+     * @return List<Integer>
+     */
     // Find out which loops could legally be interchanged with innermost loop.
     protected List<Integer> rankByMaxInterchange(List<Integer> rank, List<Loop> loops)
     {
@@ -350,28 +392,34 @@ OuterWhileLoop:
     }
 
 
-    /*
-        Reusability Test to determine the innermost loop in the nest for Max reusability.
-        1. Loop which accesses the least number of cache lines should be the innermost loop.
-        2. To find reusability score , for a loop:
-            (a) Form Reference groups with array accesses
-            (b) Array accesses can be of following types:
-                - Accesses with loop carried or non-loop carried dependencies
-                - Accesses with no loop dependencies
-                - Loop invariant accesses
-            * Refer to K.S. McKinley's paper - 'Optimizing for parallelism and data locality' on how the ref groups are formed
-        3. Add the costs in terms of cache lines for each reference group
-           - For an array access w.r.t. candidate innermost loop
-             (a) The array access requires 'trip/Cache Line size' no. of cache lines if the loop index of the 
-                 candidate innermost loop appears on the rightmost dimension of the access(row-major access)
-             (b) The array access requires 1 cache line if it is loop invariant and
-             (c) The array access requires 'trip' no. of cache lines if the loop index of the candidate innermost loop
-                 appears on the leftmost dimension of the access(Column-major access)
-            *trip : Number of iterations of the candidate innermost loop.
-        4. Multiply the Reference group costs with the number of iterations of loops other than the candidate innnermost loop
-        5. Here Cache line size is assumed to be 64.
-        6.Symbolic loop bounds are also supported, though extensive testing needs to be done to ensure accuracy.
-    */
+    /**
+     * Reusability Test to determine the innermost loop in the nest for Max reusability.
+     *         1. Loop which accesses the least number of cache lines should be the innermost loop.
+     *         2. To find reusability score , for a loop:
+     *             (a) Form Reference groups with array accesses
+     *             (b) Array accesses can be of following types:
+     *                 - Accesses with loop carried or non-loop carried dependencies
+     *                 - Accesses with no loop dependencies
+     *                 - Loop invariant accesses
+     *             * Refer to K.S. McKinley's paper - 'Optimizing for parallelism and locality' on how the ref groups are formed
+     *         3. Add the costs in terms of cache lines for each reference group
+     *            - For an array access w.r.t. candidate innermost loop
+     *              (a) The array access requires 'trip/Cache Line size' no. of cache lines if the loop index of the
+     *                  candidate innermost loop appears on the rightmost dimension of the access(row-major access)
+     *              (b) The array access requires 1 cache line if it is loop invariant and
+     *              (c) The array access requires 'trip' no. of cache lines if the loop index of the candidate innermost loop
+     *                  appears on the leftmost dimension of the access(Column-major access)
+     *             *trip : Number of iterations of the candidate innermost loop.
+     *         4. Multiply the Reference group costs with the number of iterations of loops other than the candidate innnermost loop
+     *         5. Here Cache line size is assumed to be 64.
+     *         6.Symbolic loop bounds are also supported, though extensive testing needs to be done to ensure accuracy.
+     * @param OriginalProgram - The program
+     * @param LoopNest    - The loop nest to be analyzed
+     * @param LoopExprs   - The expressions in the loop body
+     * @param LoopArrays  - All array accesses in the loop body
+     * @param LoopNestList - List of loops in the loop nest 
+     * @return    - - Order of the loops in the nest for max reusability
+     */
 
 
     public List ReusabilityAnalysis(Program OriginalProgram, Loop LoopNest ,
@@ -393,7 +441,6 @@ OuterWhileLoop:
        ArrayList<DependenceVector> Loopdpv = new ArrayList<>();
 
        Loopdpv = programDDG.getDirectionMatrix(LoopNestList);
-     
 
        DepthFirstIterator LoopNestiter = new DepthFirstIterator(LoopNest);
 
@@ -409,16 +456,13 @@ OuterWhileLoop:
 
        }
 
-     
-       Boolean SymbolicIter = true;
+       //System.out.println("loop nest: " + LoopNest +"\n");
+
        Boolean SymbolicLoopStride = false;
 
        HashMap LoopNestIterationMap = LoopIterationMap(LoopNest);
 
-       if(LoopNestIterationMap.get(LoopNestOrder.get(0)) instanceof Long){
-
-          SymbolicIter = false;
-       }
+      
       
        //Getting reusability score
 
@@ -745,13 +789,14 @@ OuterWhileLoop:
 
              }
 
-            //System.out.println( "Coeffs: " + Coeffs + " \nScores sorted: " + Sortedscores +"\n");
+            //System.out.println( "LNO: " + Symbolic_LoopCostMap + " \nScores sorted: " + Sortedscores +"\n");
 
                 for(Expression key : Symbolic_LoopCostMap.keySet() ){
 
                     Expression Symbolic_cost = Symbolic_LoopCostMap.get(key);
 
-                    LoopNestOrder.set(Sortedscores.indexOf(Symbolic_cost) , key);
+                    if(Sortedscores.indexOf(Symbolic_cost) != -1)
+                        LoopNestOrder.set(Sortedscores.indexOf(Symbolic_cost) , key);
 
                 }
 
@@ -764,13 +809,16 @@ OuterWhileLoop:
 
     }
 
-
-
-
-    /*
-    Following test determines if in the candidate loop permutation, the loop with max reuse is at the 
-    innermost position. If that's the case, the loop permutation is profitable.
-    */
+    /** 
+     * Following test determines if in the candidate loop permutation, the loop with max reuse is at the
+     * innermost position. If that's the case, the loop permutation is profitable.
+     * @param loop1     - 1st loop in the permutation
+     * @param loop2     - 2nd loop in the permutation
+     * @param LoopNest  - The loop nest with the 2 loops
+     * @param InnerLoopidx  - Loop index of the inner loop in the permutation
+     * @return              - true if profitable, false otherwise
+     */
+    
 
     private boolean isprofitable(ForLoop loop1 , ForLoop loop2 , Loop LoopNest , Expression InnerLoopidx){
 
@@ -832,11 +880,15 @@ OuterWhileLoop:
     }
 
 
-    /*
-        Determines the cost in terms of cache lines for the loop. 
-        Add the costs of all the reference groups and multiply with the iteration count
-        of the loops other than the candidate innermost loop.
-    */
+    /**
+     * Determines the cost in terms of cache lines for the loop. 
+     * Add the costs of all the reference groups and multiply with the iteration count
+     * of the loops other than the candidate innermost loop.
+     * @param ReferenceCosts    - Cost of Ref groups
+     * @param LoopNestIterCount - Number of iterations of each loop in the nest
+     * @param CurrentLoop       - Loop index of current loop
+     * @return                  - Loop cost in terms of cache lines accessed
+     */
 
     protected long LoopCost(ArrayList ReferenceCosts , HashMap LoopNestIterCount , Expression CurrentLoop){
 
@@ -864,6 +916,12 @@ OuterWhileLoop:
     }
 
 
+    
+    /** 
+     * Symbolic loop cost. Same as the routine to calculate loop cost with 
+     * long loop bounds.
+     */
+    
     protected Expression SymbolicLoopCost(ArrayList ReferenceCosts , HashMap LoopNestIterCount , Expression CurrentLoop){
 
         int i;
@@ -896,13 +954,17 @@ OuterWhileLoop:
     }
 
 
-    /*
-
-        Following method forms reference groups of Array Accesses for each loop in the Nest.
-        1. Criteria for 2 references to be in the same group depend on whether they have dependencies (Loop carrried and Non Loop Carried).
-        2. Criteria for forming groups have been derived from the paper - "Optimizing for Parallelism and Data Locality" - K.S Mckinley
-
-    */
+    
+    /** 
+     * Following method forms reference groups of Array Accesses for each loop in the Nest.
+     * 1. Criteria for 2 references to be in the same group depend on whether they have dependencies (Loop carrried and Non Loop Carried).
+     * 2. Criteria for forming groups have been derived from the paper - "Optimizing for Parallelism and Data Locality" - K.S Mckinley
+     * @param CandidateLoop   - The loop with the array accesses
+     * @param LoopBodyArrays  - Arrays in the loop body
+     * @param OriginalLoopNestOrder - Original order of the loops
+     * @return    - list of reference groups
+     */
+    
 
     private static List RefGroup( Loop CandidateLoop, List<ArrayAccess> LoopBodyArrays , List<Expression> OriginalLoopNestOrder){
             
@@ -1024,7 +1086,6 @@ OuterWhileLoop:
     }
 
 
-    // Returns a Mapping of the Loops to their corresponding iteration count
  
     private HashMap LoopIterationMap(Loop LoopNest)
 
@@ -1047,11 +1108,16 @@ OuterWhileLoop:
 
         long numLoopiter = 0;
 
+      
             while(forloopiter.hasNext()){
 
                 ForLoop loop = forloopiter.next();
 
-                     Expression upperbound = LoopTools.getUpperBoundExpression(loop);
+                    //Using custom method to find loop upper bound as Range analysis
+                    // gives probles when substituting the value range of a symbolic
+                    //loop upperbound.
+
+                     Expression upperbound = LoopUpperBoundExpression(loop);
  
                      Expression lowerbound = LoopTools.getLowerBoundExpression(loop);
  
@@ -1106,10 +1172,6 @@ OuterWhileLoop:
     }
 
 
-
-  
-
-    /* if all upperbound, lowerbound and increment are constnant, we can decide by number of iterations */
     protected List<Integer> rankByNumOfIteration(List<Integer> rank, List<Loop> loops)
     {
         int i, rankSize;
@@ -1154,6 +1216,7 @@ OuterWhileLoop:
         return result;
     }
 
+    
     protected int getRank2(List<Integer> rank, List<Expression> expList, List<Loop> loops)
     {
         int i;
@@ -1172,9 +1235,6 @@ OuterWhileLoop:
         return result.get(result.size()-1);
     }
 
-   
-   
-      //  Safe to say that this method is used to determine number of loop interchanges possible in a loop nest
     
     protected List<Integer> getRank(List<ArrayAccess> array , List<Expression> expList, int n)
     {
@@ -1230,7 +1290,14 @@ OuterWhileLoop:
 
    
 
-
+    
+    /** 
+     * Determines if the access is a stride 1 access
+     * @param Expr - Input Expression
+     * @param Var - LoopIndex
+     * @return    -  boolean
+     */
+    //Determines if an access is a stride 1 access
     private boolean UnitStride(Expression Expr , Expression Var)
 
     {
@@ -1277,6 +1344,12 @@ OuterWhileLoop:
     }
 
     
+  
+  /** 
+   * Performs the actual swapping of loops
+   * @param loop1 - Input loop to be swapped
+   * @param loop2 - Input loop to be swapped
+   */
 
     public void swapLoop(ForLoop loop1, ForLoop loop2) 
     {
@@ -1290,11 +1363,14 @@ OuterWhileLoop:
         return;
     }
 
+   /**
+    * Check legality of loop interchange between src and target. Both src and target are in the nest and src is outer than target
+    * @param nest   - The input loop nest
+    * @param src    - Rank of the source loop
+    * @param target - Rank of the target loop
+    * @return       - If two loops can be interchanged or not
+    */
 
-  
-
-   
-    /* Check legality of loop interchange between src and target. Both src and target are in nest loops and src is outer than target */
     public boolean isLegal(LinkedList<Loop> nest, int src, int target)
     {
         int i, j, next;
@@ -1336,5 +1412,80 @@ OuterWhileLoop:
 
         return true;
     }
+    
 
+  private boolean HasSymbolicBounds(HashMap LoopIterMap){
+
+    Set<Expression> LoopIndices = LoopIterMap.keySet();
+
+    for(Expression e : LoopIndices){
+
+        Object o = LoopIterMap.get(e);
+
+        if(o instanceof IntegerLiteral || 
+           o instanceof Long || o instanceof ArrayAccess){
+            
+              return false;
+        }
+
+        if(o instanceof Expression){
+            Expression ubexp = (Expression)o;
+
+            if(Symbolic.getVariables(ubexp) == null)
+               return false;
+           
+        }    
+     }
+
+     return true;
+
+  }
+
+  private boolean HasNonSymbolicBounds(HashMap LoopIterMap){
+
+    Set<Expression> LoopIndices = LoopIterMap.keySet();
+
+    for(Expression e : LoopIndices){
+
+        if(!(LoopIterMap.get(e) instanceof IntegerLiteral || 
+            LoopIterMap.get(e) instanceof Long)){
+           
+              return false;
+        }
+     }
+
+  
+     return true;
+
+  }
+
+
+
+
+private static Expression LoopUpperBoundExpression(Loop loop) {
+        Expression ub = null;
+        if (loop instanceof ForLoop) {
+            ForLoop for_loop = (ForLoop)loop;
+            // determine upper bound for index variable of this loop
+            BinaryExpression cond_expr =
+                    (BinaryExpression)for_loop.getCondition();
+            Expression rhs = cond_expr.getRHS();
+            Expression step_size = LoopTools.getIncrementExpression(loop);
+            BinaryOperator cond_op = cond_expr.getOperator();
+            if (cond_op.equals(BinaryOperator.COMPARE_LT)) {
+                ub = Symbolic.subtract(rhs, step_size);
+            } else if ((cond_op.equals(BinaryOperator.COMPARE_LE)) ||
+                       (cond_op.equals(BinaryOperator.COMPARE_GE))) {
+                ub = Symbolic.simplify(rhs);
+            } else if (cond_op.equals(BinaryOperator.COMPARE_GT)) {
+                ub = Symbolic.add(rhs, step_size);
+            }
+        }
+      
+        return ub;
+    }
+
+    
 }
+
+

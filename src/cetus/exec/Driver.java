@@ -336,7 +336,7 @@ public class Driver {
             + "      =2 Profile-based loop selection");
 
         options.add(options.TRANSFORM,
-                    "loop-interchange", 
+                    "loop_interchange", 
                      "Exchanges the order of two iteration variables used by a nested loop");
         
         options.add(options.ANALYSIS,
@@ -811,7 +811,7 @@ public class Driver {
         }
       
 */
-        if (getOptionValue("loop-interchange") != null) {
+        if (getOptionValue("loop_interchange") != null) {
             TransformPass.run(new LoopInterchange(program));
         }
 

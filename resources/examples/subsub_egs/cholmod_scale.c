@@ -10,7 +10,7 @@
 int main(){
 
   int a[N] , b[N], c[N], d[N];
-  int Ax[N] = {0} , s[N] = {0};
+  int Ax[N] = {0} , s[N] = {0}, Ai[N];
   
   int i , n , p , x;
   int j,k;
@@ -40,30 +40,16 @@ int main(){
    }
 
 
+ //Loop to parallelize
    for(j=0; j < n; j++){
 
       for(k =d[j]; k < d[j+1]; k++){
 
-         Ax[k] = Ax[k] * s[j];
+         Ax[k] = s[j]*Ax[k]*s[Ai[k]];
 
       }
 
    }
-
-for(j=0 ; j < n; j++) {
-
-     if(j%2 ==0)
-       a[j] = 0;
-      else
-       a[j] = 1;
-     
-  }
-
-  for(j=0 ; j<n; j++) {
-
-     a[j] = a[j-1] + a[j];
-     
-  }
  
   
 	

@@ -173,6 +173,7 @@ private static void wrapper(CFGraph SubroutineGraph){
                             //System.out.println("collap node: " + Collapsed_innerloopNode.getData("tag") + " , range: " + Collapsed_innerloopNode.getData("ranges") +"\n");
                         }
 
+                        System.out.println("=======================================================================\n");
                         //Phase 1 Called
                         SubSubAnalysis(innerloop, LoopControlFlowGraph ,
                                                     RangeValuesBeforeCurrentLoop.get(LoopTools.getLoopName(outermost_for_loop)));
@@ -561,7 +562,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                 Set<Symbol> Final_symbols = Phase1Exprs.getSymbols();
                 Killed_symbols = symmetricDifference(Initial_syms, Final_symbols);
 
-                //System.out.println("Subscripted-subscript analysis for Loop: " + LoopName + "\n" );  
+                System.out.println("Subscripted-subscript analysis for Loop: " + LoopName + "\n" );  
                 SubSubPhasetwo(node.getData("ranges") , LoopLVVs , input_for_loop , 
                                       Prior_Ranges , node.getData("array-subscripts"));                
                 
@@ -739,13 +740,13 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
 
                             ArraySubscripts.put(sym, agg_subscript);
                             
-                            // System.out.println("LVV: " + sym + "\nclass: " + recurrence_class  + "\nAggregate subscript: " + ArraySubscripts.get(sym) +
-                            //                         "\nAggregate value range: " + LoopRangeExpressions.getRange(sym) + "\nproperty: " + variable_property.get(sym) +"\n");
+                            System.out.println("LVV: " + sym + "\nclass: " + recurrence_class  + "\nAggregate subscript: " + ArraySubscripts.get(sym) +
+                                                    "\nAggregate value range: " + LoopRangeExpressions.getRange(sym) + "\nproperty: " + variable_property.get(sym) +"\n");
 
                         }
-                        // else
-                        //     System.out.println("LVV: " + sym  +"\nclass: " + recurrence_class + 
-                        //                             "\nAggregate value range: " + LoopRangeExpressions.getRange(sym) + "\nproperty: " + variable_property.get(sym) +"\n");
+                        else
+                            System.out.println("LVV: " + sym  +"\nclass: " + recurrence_class + 
+                                                    "\nAggregate value range: " + LoopRangeExpressions.getRange(sym) + "\nproperty: " + variable_property.get(sym) +"\n");
 
                         
                     }

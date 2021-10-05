@@ -127,8 +127,6 @@ public class RangeAnalysis extends AnalysisPass
     /** Result of interprocedural range analysis. */
     private static Map<Procedure, Map<Statement, RangeDomain>> ip_ranges = null;
 
-   
-
     /** Alias analysis for less conservative range analysis. */
     private static AliasAnalysis alias;
 
@@ -266,21 +264,15 @@ public class RangeAnalysis extends AnalysisPass
             DFANode node = cfg.getNode(i);
             Object o = null;
             RangeDomain rd = null;
-
-            o=node.getData("ir");
-    
-            
-            if (o instanceof Statement &&
+            if ((o=node.getData("stmt")) instanceof Statement &&
                 (rd=node.getData("ranges")) != null) {
                 ret.put((Statement)o, rd);
             }
-          
         }
         // Step 2: Filters potentially unsafe range information. This is
         // required because CFGraph and Traversable cannot exchangeable each
         // other 100%, in terms of scope information.
         filterUnsafeRanges(root, ret);
-    
         return ret;
     }
 
@@ -573,8 +565,6 @@ public class RangeAnalysis extends AnalysisPass
         CFGraph cfg = new CFGraph(symtab);
         cfg.normalize();
         cfg.topologicalSort(cfg.getNodeWith("stmt", "ENTRY"));
-
-        
         iterateToFixpoint(cfg, true);
         iterateToFixpoint(cfg, false);
         if (debug >= 3) {
@@ -714,9 +704,7 @@ public class RangeAnalysis extends AnalysisPass
     private static void iterateToFixpoint(CFGraph g, boolean widen) {
         TreeMap<Integer, DFANode> work_list = new TreeMap<Integer, DFANode> ();
         // Add the entry node to the work list for widening phase.
-       
         if (widen) {
-           
             DFANode entry = g.getNodeWith("stmt", "ENTRY");
             if (entry.getData("ranges") == null)
                 entry.putData("ranges", new RangeDomain());
@@ -724,7 +712,6 @@ public class RangeAnalysis extends AnalysisPass
            
         } else {
         // Add the widened nodes to the work list for narrowing phase.
-        
             for (int i = 0; i < g.size(); ++i) {
                 DFANode widened = g.getNode(i);
                 if (widened.getData("has-backedge") != null) {
@@ -733,28 +720,20 @@ public class RangeAnalysis extends AnalysisPass
                 }
             }
         }
-
-
         while (work_list.size() > 0) {
-
             // Get the first node in topological order from the work list.
             Integer node_num = work_list.firstKey();
             DFANode node = work_list.remove(node_num);
             // Record number of iterations for each node.
-          
-       
             Integer visits = node.getData("num-visits");     
             if (visits == null) {
                 node.putData("num-visits", new Integer(1));
                 setBackedge(node);
-               
             } else {
                 node.putData("num-visits", new Integer(visits + 1));
             }
             PrintTools.printlnStatus(3, tag, "Visited Node#", node_num);
             PrintTools.printlnStatus(3, tag, "  IR =",CFGraph.getIR(node));
-
-
             // Merge incoming states from predecessors.
             RangeDomain curr_ranges = null;
             for (DFANode pred : node.getPreds()) {
@@ -769,30 +748,24 @@ public class RangeAnalysis extends AnalysisPass
                     curr_ranges.unionRanges(pred_range_out);
                 }
             }
-            
             PrintTools.printlnStatus(3, tag, "  UNION =", curr_ranges);
             // Add initial values from declarations
             enterScope(node, curr_ranges);
             // Widening/Narrowing operations.
-
             RangeDomain prev_ranges = node.getData("ranges");
             if (prev_ranges != null && node.getData("has-backedge") != null) {
                 if (widen) {
                     Set<Symbol> widener = node.getData("loop-variants");
                     // Selective widening only with loop-variant symbols.
                     if (widener != null && widener.size() > 0) {
-                        curr_ranges.widenAffectedRanges(prev_ranges, widener);
-                    
+                        curr_ranges.widenAffectedRanges(prev_ranges, widener);    
                     } else {
-                        curr_ranges.widenRanges(prev_ranges);
-                      
+                        curr_ranges.widenRanges(prev_ranges); 
                     }
                 } else {
                     curr_ranges.narrowRanges(prev_ranges);
                 }
             }
-
-           
             PrintTools.printlnStatus(3, tag, "  WIDEN/NARROW =", curr_ranges);
             if (option == RANGE_PRAGMA) {
                 // Reads user-provided range pragma.
@@ -815,19 +788,14 @@ public class RangeAnalysis extends AnalysisPass
                     // Keep the IPA result for the entry node.
                     node.putData("ranges", curr_ranges);
                 }
-                // Apply state changes due to the execution of the node.
-            
+                // Apply state changes due to the execution of the node.      
                 updateRanges(node);
-        
                 // Clean up after exiting a scope.
                 exitScope(node);
                 // Process successors.
-    
                 for (DFANode succ : node.getSuccs()) {
-                    // Do not add successors for infeasible paths
-                   
+                    // Do not add successors for infeasible paths 
                     if (succ.getPredData(node) != null) {
-                     
                         work_list.put((Integer)succ.getData("top-order"), succ);
                         PrintTools.printlnStatus(3, tag, "  OUT#",
                                 succ.getData("top-order"), "=",
@@ -835,12 +803,7 @@ public class RangeAnalysis extends AnalysisPass
                     }
                 }
             }
-
-           
-
         }
-
-        
     }
 
     // Add intialized values from the declarations.
@@ -949,9 +912,7 @@ public class RangeAnalysis extends AnalysisPass
 
     // Methods for updating edges to successors.
     public static void updateRanges(DFANode node) {
-     
         Object o = CFGraph.getIR(node);
-       
         if (o instanceof ExpressionStatement) {
             o = ((ExpressionStatement)o).getExpression();
         }
@@ -971,7 +932,6 @@ public class RangeAnalysis extends AnalysisPass
                 return;
             }
         }
-        
         // Assignments
         if (o instanceof AssignmentExpression) {
             updateAssignment(node, (AssignmentExpression)o);
@@ -1165,7 +1125,8 @@ public class RangeAnalysis extends AnalysisPass
                 node.putData("assign-to", to);
                 node.putData("assign-from", from);
                 
-            } else if (to instanceof ArrayAccess ) {
+            } 
+            else if (to instanceof ArrayAccess ) {
 
                 // Check for array variables on the LHS. 
                 // IF the RHS does not contain LHS (the array being modified) no self-output dependence
@@ -1185,10 +1146,11 @@ public class RangeAnalysis extends AnalysisPass
             else{
 
                 node.putData("assign-to", to);                    
-                node.putData("assign-from", from); 
+                //node.putData("assign-from", from); 
                 direction = "kill";       
 
             }
+            //System.out.println("to: "+ to+ ", direction: "+ direction +"\n");
             // Case 7. Lvalue is not simple; no source of information.
             node.putData("assign-direction", direction);
         }
@@ -1236,6 +1198,8 @@ public class RangeAnalysis extends AnalysisPass
                 ranges_out.setRange(sym , (Expression)RHS);     
             
             }
+
+            //System.out.println("range out: " + ranges_out +"\n");
         
         }
         //Would need to handle the case where node_data is NameID
@@ -1293,6 +1257,7 @@ public class RangeAnalysis extends AnalysisPass
             //System.out.println("ranges out " + ranges_out + " , in !no-change " +"\n");
         }
         // Update successors.
+        //System.out.println("ranges out " + ranges_out +"\n");
         for (DFANode succ : node.getSuccs()) {
             succ.putPredData(node, ranges_out);
         }

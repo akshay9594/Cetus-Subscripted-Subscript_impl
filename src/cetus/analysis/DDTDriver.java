@@ -158,6 +158,7 @@ public class DDTDriver extends AnalysisPass {
         // key
 
         LoopInfo loop_info = new LoopInfo(currentLoop);
+
         // Use range analysis information to remove symbolic values from loop
         // information
         RangeDomain loop_range = RangeAnalysis.query((Statement)currentLoop);
@@ -167,6 +168,7 @@ public class DDTDriver extends AnalysisPass {
             Expression new_lb = LoopTools.replaceSymbolicLowerBound(
                     currentLoop, loop_range);
             // Assign new lower bound to loop in Loop Info
+
             loop_info.setLoopLB(new_lb);
         }
         // Upper bound for loop is not constant, use range information
@@ -424,6 +426,8 @@ public class DDTDriver extends AnalysisPass {
                     }
                 }
             }
+
+    
             int list1_size = arrayList.size(), list2_size = arrayList2.size();
             for (int i = 0; i < list1_size; i++) {
                 DDArrayAccessInfo expr1_info = arrayList.get(i);
@@ -489,6 +493,7 @@ public class DDTDriver extends AnalysisPass {
                             expr2_symbols.remove(index_sym);
                         }
                       
+
                         if (!(expr1_symbols.isEmpty()) ||
                             !(expr2_symbols.isEmpty())) {
                             
@@ -523,7 +528,7 @@ public class DDTDriver extends AnalysisPass {
                         DVset = new ArrayList<DependenceVector>();
                         // Pass pair of accesses to dependence test and
                         // store resulting direction vector set in DVset
-
+                        
                         depExists = ddt.testAccessPair(DVset);
                        
                     }

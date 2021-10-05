@@ -6,7 +6,7 @@
 
 int main(){
     
-  float a[30000];
+  int a[30000];
   
   int b[30000];
 
@@ -16,5 +16,4 @@ int main(){
 
   }
 
-   return 0;
 }

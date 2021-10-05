@@ -114,8 +114,7 @@ public class RangeTest implements DDTest {
         signature.add(pair.getStatement1());
         signature.add(pair.getStatement2());
         RangeTest ret = rtest_cache.get(signature);
-
-        if (ret == null || TransformPass.loop_interchange_pass) {
+        if (ret == null) {
             ret = new RangeTest(pair);
             rtest_cache.put(signature, ret);
 
@@ -200,6 +199,7 @@ public class RangeTest implements DDTest {
         Expression next = IRTools.replaceSymbol(
                 e, index.getSymbol(), Symbolic.add(index, step));
         Relation rel = rd.compare(e, next);
+        
         int ret = MONO_UNKNOWN;
         if (rel.isEQ()) {
             ret = MONO_CONST;
@@ -212,6 +212,7 @@ public class RangeTest implements DDTest {
             PrintTools.printlnStatus(3,
                     tag, "mono(", e, ") w.r.t.", loopToString(loop), "=", ret);
         }
+
         return ret;
     }
 
@@ -262,6 +263,7 @@ public class RangeTest implements DDTest {
 /* Use this cache if profitable.
     expr_range_cache.put(signature, ret);
 */
+    
         return ret;
     }
 
@@ -367,6 +369,7 @@ public class RangeTest implements DDTest {
                            inner_permuted.isEmpty()) {
                     placed = true;
                 } else {
+                   
                     inner_permuted.remove(perm_loop);
                     inner_permuted.add(loop);
                     if (!test2(perm_loop, inner_permuted)) {
@@ -389,7 +392,7 @@ public class RangeTest implements DDTest {
             }
         }
 
-
+        //System.out.println("parallel loops: " + parallel_loops +"\n");
         was_solved = true;
         setIndependentVectors();
         PrintTools.printlnStatus(2, tag, this);
@@ -434,7 +437,9 @@ public class RangeTest implements DDTest {
             for (int i = loop_id + 1; i < common_loops.size(); i++) {
                 independent_vectors[i] |= DV_ANY + DV_LT + DV_GT + DV_EQ;
             }
+
         }
+
     }
 
     // Returns loop variants of the specified loop -- cached.
@@ -449,11 +454,12 @@ public class RangeTest implements DDTest {
 
     // Range test rule 1: min/max check w.r.t the given set of loops.
     private boolean test1(Loop loop, Set<Loop> loops) {
+
         boolean ret =
                 (f != g &&
                 (rtest1(f, g, f_loops, g_loops, loop, loops) ||
                  rtest1(g, f, g_loops, f_loops, loop, loops)));
-        PrintTools.printlnStatus(2, tag, "test1 =", ret);
+    
         return ret;
     }
 
@@ -474,6 +480,7 @@ public class RangeTest implements DDTest {
                 RangeExpression.toRange(getRange(e1, inner_loops1)).getUB();
         Expression min2 =
                 RangeExpression.toRange(getRange(e2, inner_loops2)).getLB();
+        
         if (max1 instanceof InfExpression || min2 instanceof InfExpression) {
             PrintTools.printlnStatus(3, tag, "max1 =", max1, "min2 =", min2);
             return false;
@@ -497,6 +504,7 @@ public class RangeTest implements DDTest {
         inner_loops2.add(loop);
         max1 = RangeExpression.toRange(getRange(max1, inner_loops1)).getUB();
         min2 = RangeExpression.toRange(getRange(min2, inner_loops2)).getLB();
+
         if (max1 instanceof InfExpression || min2 instanceof InfExpression) {
             PrintTools.printlnStatus(3, tag, "max1 =", max1, "min2 =", min2);
             return false;
@@ -540,6 +548,7 @@ public class RangeTest implements DDTest {
     // monotonicity hints.
     private boolean test2(Loop loop, Set<Loop> loops) {
         int f_mono = getMonoState(f, f, loop);
+
         boolean ret = (
                 (f_mono == MONO_NONINC || f_mono == MONO_NONDEC) &&
                 (f_mono == getMonoState(g, g, loop)) &&
@@ -564,6 +573,8 @@ public class RangeTest implements DDTest {
                 RangeExpression.toRange(getRange(e1, inner_loops1)).getUB();
         Expression min2 =
                 RangeExpression.toRange(getRange(e2, inner_loops2)).getLB();
+
+       
         if (max1 instanceof InfExpression || min2 instanceof InfExpression) {
             PrintTools.printlnStatus(3, tag, "max1 =", max1, "min2 =", min2);
             return false;
@@ -584,10 +595,12 @@ public class RangeTest implements DDTest {
         Expression new_index = null;
         RangeExpression new_index_range = null;
         Expression index_range = rd.getRange(id);
+        
         boolean has_index_range = (
                 index_range != null &&
                 index_range instanceof RangeExpression &&
                 RangeExpression.toRange(index_range).isBounded());
+
         if (getMonoState(min2, e2, loop) == MONO_NONDEC) {
             new_index = Symbolic.add(index, step);
             if (has_index_range) {
@@ -607,8 +620,11 @@ public class RangeTest implements DDTest {
         if (has_index_range) {
             rd.setRange(id, new_index_range);
         }
+
         Relation rel = rd.compare(max1, min2);
         PrintTools.printlnStatus(3, tag, "compare:", max1, rel, min2);
+
+        //System.out.println("min2: " + min2 +" , max1: " + max1 +" , rel: " + rel +"\n");
         return rel.isLT();
     }
 

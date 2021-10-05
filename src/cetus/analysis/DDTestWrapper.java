@@ -123,7 +123,6 @@ public class DDTestWrapper {
             int dimensions = access1.getNumIndices();
             subscriptPairs = new ArrayList<SubscriptPair>(dimensions);
 
-            
             for (int dim = 0; dim < dimensions; dim++) {
 
                 SubscriptPair pair = new SubscriptPair(
@@ -133,6 +132,7 @@ public class DDTestWrapper {
                         stmt2,
                         loop_nest,
                         loop_info);
+
                 subscriptPairs.add(dim, pair);
 
             }
@@ -269,12 +269,12 @@ public class DDTestWrapper {
                                   List<DependenceVector> dvs) {
         boolean ret = false;
         List<DependenceVector> dv = new ArrayList<DependenceVector>();
+
         for (int i = 0; i < partition.size(); i++) {
             SubscriptPair pair = partition.get(i);
 
             List<DependenceVector> dv2 = new ArrayList<DependenceVector>();
             int complexity = pair.getComplexity();
-
             if (complexity == 0) {
                 PrintTools.printlnStatus(2, "** calling testZIV");
                 ret |= testZIV(pair, dv2);
@@ -381,7 +381,6 @@ public class DDTestWrapper {
                             List<DependenceVector> dependence_vectors) {
         DDTest ddtest = null;
         ArrayList<DependenceVector> new_dv;
-
 
         if (ddtest_type == DDTEST_OMEGA) {
             // ERROR, how did we get here?

@@ -165,19 +165,29 @@ public class DDTDriver extends AnalysisPass {
        
         // Lower bound for loop is not constant, use range information
         if (!(LoopTools.isLowerBoundConstant(currentLoop))) {
+
+            Expression loop_lb = LoopTools.getLowerBoundExpression(currentLoop);
+
             Expression new_lb = LoopTools.replaceSymbolicLowerBound(
                     currentLoop, loop_range);
-            // Assign new lower bound to loop in Loop Info
 
-            loop_info.setLoopLB(new_lb);
+            // Assign new lower bound to loop in Loop Info
+            if(!(IRTools.containsClass(loop_lb, ArrayAccess.class)))
+                loop_info.setLoopLB(new_lb);
+    
         }
         // Upper bound for loop is not constant, use range information
         if (!(LoopTools.isUpperBoundConstant(currentLoop))) {
+
+            Expression loop_ub = LoopTools.getUpperBoundExpression(currentLoop);
+    
             Expression new_ub = LoopTools.replaceSymbolicUpperBound(
                     currentLoop, loop_range);
             // Assign new upper bound to loop in Loop Info
-            loop_info.setLoopUB(new_ub);
+            if(!( IRTools.containsClass(loop_ub, ArrayAccess.class)))
+                loop_info.setLoopUB(new_ub);
         }
+
         // Increment for loop is not constant, use range information
         // Range information will return constant integer increment value as
         // the loop has already been considered eligible for dependence testing

@@ -611,7 +611,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
      */
     
 
-    public static void SubSubPhasetwo(RangeDomain LoopRangeExpressions , Set<Symbol> LoopVariantVars, ForLoop input_for_loop,
+    private static void SubSubPhasetwo(RangeDomain LoopRangeExpressions , Set<Symbol> LoopVariantVars, ForLoop input_for_loop,
                                             RangeDomain RangeValsBeforeLoop, Map<Symbol,Expression>ArraySubscripts)
     {
 

@@ -908,7 +908,7 @@ public class Driver {
 					"e.g. \"./cetus -gui\" or \"java -jar cetus.jar -gui\".");
 			System.out.println();
 			(new Driver()).run(args);
-			checkUpdate();
+			//checkUpdate();
 			//t2.interrupt(); //if thread 2 for checking new version has not finished after Cetus finished, interrupt it.
 		}
     }

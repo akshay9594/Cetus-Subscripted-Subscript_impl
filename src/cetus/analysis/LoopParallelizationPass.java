@@ -75,6 +75,7 @@ public class LoopParallelizationPass extends AnalysisPass {
         }
         reportParallelization();
         // Invokes reduction transformation.
+     
         if (!nested_parallelism) {
             TransformPass.run(new ReductionTransform(program));
         }
@@ -204,6 +205,7 @@ public class LoopParallelizationPass extends AnalysisPass {
 
             // Records loops that are already scheduled for parallelization.
             List<Loop> scheduled = new ArrayList<Loop>(contained_nest.size());
+
             for (int j = 0; j < contained_nest.size(); j++) {
                 boolean has_scheduled_outer_loop = false;
                 Loop l = contained_nest.get(j);

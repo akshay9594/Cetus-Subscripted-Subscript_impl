@@ -148,13 +148,21 @@ public class RangeTest implements DDTest {
         f_loops.removeAll(common_loops);
         g_loops.removeAll(common_loops);
 
+        //Substitute array subscript expressions in f and g is present
+        Expression SubscriptedSubscriptExpr = SubstituteArraySubscripts(common_range, f, g);
+        if( SubscriptedSubscriptExpr != null){
+
+            f = common_range.substituteForwardRange(f);
+            g = common_range.substituteForwardRange(g);
+        }
+
         // Relevant loops belong to a subset of the common loops.
         relevant_loops = new LinkedHashSet<Loop>();
         for (int i = 0; i < common_loops.size(); i++) {
             Loop loop = common_loops.get(i);
             Identifier index = (Identifier)LoopTools.getIndexVariable(loop);
             Symbol index_sym = index.getSymbol();
-
+           
             if (IRTools.containsSymbol(f, index_sym) ||
                 IRTools.containsSymbol(g, index_sym)) {
                 
@@ -162,14 +170,13 @@ public class RangeTest implements DDTest {
             }
         }
 
-    
         parallel_loops = new LinkedHashMap<Loop, String>();
         independent_vectors = new int[common_loops.size()];
         // Pseudo-common loops; will be considered in the future if profitable.
         was_solved = false;
         // Eligibility
-        is_eligible = !IRTools.containsClass(f, ArrayAccess.class) &&
-                      !IRTools.containsClass(g, ArrayAccess.class) &&
+        is_eligible = //!IRTools.containsClass(f, ArrayAccess.class) &&
+                      //!IRTools.containsClass(g, ArrayAccess.class) &&
                       !IRTools.containsClass(f, FunctionCall.class) &&
                       !IRTools.containsClass(g, FunctionCall.class);
     }
@@ -214,6 +221,47 @@ public class RangeTest implements DDTest {
         }
 
         return ret;
+    }
+
+    private static Expression SubstituteArraySubscripts(RangeDomain common_range, Expression f,
+                                                    Expression g){
+
+
+        Set<Symbol> vars = common_range.getSymbols();
+
+        Iterator symbol_iter = vars.iterator();
+
+        while(symbol_iter.hasNext()){
+
+            Symbol sym = (Symbol)symbol_iter.next();
+
+            if(IRTools.containsSymbol(f, sym)){
+
+                Expression range = common_range.getRange(sym);
+
+                //Substitute range into f,g and simplify
+
+                if(range instanceof RangeExpression){
+
+                    RangeExpression range_expr = (RangeExpression)range;
+
+                    Expression lb = range_expr.getLB();
+                    Expression ub = range_expr.getUB();
+
+                    ub = Symbolic.add(ub, new IntegerLiteral(1));
+
+                    if(lb instanceof ArrayAccess && ub instanceof ArrayAccess){
+                           
+                        return range;
+                    }
+                }
+
+            }
+
+        }
+
+        return null;
+
     }
 
     // Returns the range of the given expression with respect to the given set
@@ -331,7 +379,6 @@ public class RangeTest implements DDTest {
     // Driver for a single range test problem.
     private void solve() {
 
-
         //Return quickly if the problem was already solved.
         if (was_solved) {
             return;
@@ -354,9 +401,9 @@ public class RangeTest implements DDTest {
                 }
                 placed = true;
             }
-
-
+           
             Iterator perm_iter = permuted.iterator();
+
             while (perm_iter.hasNext() && !placed) {
                 Loop perm_loop = (Loop)perm_iter.next();
                 if (test1(loop, inner_permuted)) {
@@ -367,9 +414,9 @@ public class RangeTest implements DDTest {
                     placed = true;
                 } else if (!parallel_loops.containsKey(perm_loop) ||
                            inner_permuted.isEmpty()) {
+
                     placed = true;
                 } else {
-                   
                     inner_permuted.remove(perm_loop);
                     inner_permuted.add(loop);
                     if (!test2(perm_loop, inner_permuted)) {
@@ -381,6 +428,7 @@ public class RangeTest implements DDTest {
                     permuted.add(permuted.indexOf(perm_loop), loop);
                 }
             }
+
             if (!placed) {
                 // Assert inner_permuted.size() == 0
                 if (test1(loop, inner_permuted)) {
@@ -388,11 +436,16 @@ public class RangeTest implements DDTest {
                 } else if (test2(loop, inner_permuted)) {
                     parallel_loops.put(loop, TEST2_PASS);
                 }
+
+                //Test3 for dependence testing in the presence of subscripted subscripts 
+                 if(parallel_loops.isEmpty()){
+                    test3(loop, inner_permuted);
+                 }
                 permuted.add(loop);
             }
+
         }
 
-        //System.out.println("parallel loops: " + parallel_loops +"\n");
         was_solved = true;
         setIndependentVectors();
         PrintTools.printlnStatus(2, tag, this);
@@ -505,6 +558,8 @@ public class RangeTest implements DDTest {
         max1 = RangeExpression.toRange(getRange(max1, inner_loops1)).getUB();
         min2 = RangeExpression.toRange(getRange(min2, inner_loops2)).getLB();
 
+        // System.out.println("e1: "+ e1 +" , e2: "+ e2);
+        // System.out.println("max1: "+ max1 +" , min2: "+ min2 +"\n");
         if (max1 instanceof InfExpression || min2 instanceof InfExpression) {
             PrintTools.printlnStatus(3, tag, "max1 =", max1, "min2 =", min2);
             return false;
@@ -513,6 +568,7 @@ public class RangeTest implements DDTest {
         min2 = removeLoopVariants(min2, e2, inner_loops2);
         Relation rel = common_range.compare(max1, min2);
         PrintTools.printlnStatus(3, tag, "compare:", max1, rel, min2);
+        
         return rel.isLT();
     }
 
@@ -548,7 +604,6 @@ public class RangeTest implements DDTest {
     // monotonicity hints.
     private boolean test2(Loop loop, Set<Loop> loops) {
         int f_mono = getMonoState(f, f, loop);
-
         boolean ret = (
                 (f_mono == MONO_NONINC || f_mono == MONO_NONDEC) &&
                 (f_mono == getMonoState(g, g, loop)) &&
@@ -595,7 +650,7 @@ public class RangeTest implements DDTest {
         Expression new_index = null;
         RangeExpression new_index_range = null;
         Expression index_range = rd.getRange(id);
-        
+
         boolean has_index_range = (
                 index_range != null &&
                 index_range instanceof RangeExpression &&
@@ -624,9 +679,34 @@ public class RangeTest implements DDTest {
         Relation rel = rd.compare(max1, min2);
         PrintTools.printlnStatus(3, tag, "compare:", max1, rel, min2);
 
-        //System.out.println("min2: " + min2 +" , max1: " + max1 +" , rel: " + rel +"\n");
+        // System.out.println("f: " + f  + " , g:" + g +"\n");
+        // System.out.println("max1: " + max1 +" , min2: " + min2 +" , rel: " + rel +"\n");
         return rel.isLT();
     }
+
+
+    private boolean test3(Loop loop, Set<Loop> inner_permloops){
+
+        boolean ret = false;
+
+        ret = ( IRTools.containsClass(f, ArrayAccess.class) && 
+                IRTools.containsClass(g, ArrayAccess.class) &&
+                f.equals(g)
+             );
+
+        return ret;
+    }
+
+    private boolean rtest3(Expression e1, 
+                           Expression e2, 
+                            Loop loop){
+
+       
+        return false;
+
+
+    }
+
 
     /**
     * Compresses direction vectors as much as possible.

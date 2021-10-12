@@ -18,7 +18,7 @@ public class SubscriptedSubscriptAnalysis extends AnalysisPass{
 
     private static Map<Symbol, String> variable_property = new LinkedHashMap<>();
 
-    private static Map<String, Map<Symbol,String>> Loop_agg_subscripts = new HashMap<>();
+    private static Map<Symbol,Expression> Loop_agg_subscripts = new HashMap<>();
 
     public SubscriptedSubscriptAnalysis(Program program){
         super(program);
@@ -173,7 +173,7 @@ private static void wrapper(CFGraph SubroutineGraph){
                             //System.out.println("collap node: " + Collapsed_innerloopNode.getData("tag") + " , range: " + Collapsed_innerloopNode.getData("ranges") +"\n");
                         }
 
-                        System.out.println("=======================================================================\n");
+                        //System.out.println("=======================================================================\n");
                         //Phase 1 Called
                         SubSubAnalysis(innerloop, LoopControlFlowGraph ,
                                                     RangeValuesBeforeCurrentLoop.get(LoopTools.getLoopName(outermost_for_loop)));
@@ -562,7 +562,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                 Set<Symbol> Final_symbols = Phase1Exprs.getSymbols();
                 Killed_symbols = symmetricDifference(Initial_syms, Final_symbols);
 
-                System.out.println("Subscripted-subscript analysis for Loop: " + LoopName + "\n" );  
+               // System.out.println("Subscripted-subscript analysis for Loop: " + LoopName + "\n" );  
                 SubSubPhasetwo(node.getData("ranges") , LoopLVVs , input_for_loop , 
                                       Prior_Ranges , node.getData("array-subscripts"));                
                 
@@ -570,8 +570,6 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                 
                 //Collecting the aggregation information corresponding to each loop
                 Loop_agg_ranges.put(loop_ant.toString(), node.getData("ranges"));
-
-                Loop_agg_subscripts.put(loop_ant.toString(), node.getData("array-subscripts"));
 
                 //Update successors or ranges associated with the outgoing control flow edges
                 for(DFANode successor : node.getSuccs()){
@@ -637,8 +635,6 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
 
         }
         
-        //System.out.println("Range values at loop header: " + RangeValsBeforeLoop  +"\n");
-        // System.out.println("Phase 1 Range Expressions: " + LoopRangeExpressions +"\n");
 
         // System.out.println("Phase 2 Analysis:\n");
 
@@ -672,7 +668,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                         switch(recurrence_class){
                             case "Class 1":
                                 SSR_variables.add(sym);
-                                variable_property.put(sym, "Monotonicity");
+                                variable_property.put(sym, "MONOTONIC");
             
                                 //increment expression has been determined in identify_recurrence_class()
                                 aggregate_lb = Symbolic.multiply(increment_expression.getLB(), LoopIterationCount);
@@ -701,10 +697,10 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                             case "Class 2":
                                 Symbol SSR_Var = SymbolTools.getSymbolOf(Find_SSR_Var(LVV_Value_expr, SSR_variables));
                                 //check the property of the SSR variable
-                                if(variable_property.get(SSR_Var).equals("Strict_Monotonicity"))
-                                    variable_property.put(sym, "Strict_Monotonicity");
+                                if(variable_property.get(SSR_Var).equals("STRICT_MONOTONIC"))
+                                    variable_property.put(sym, "STRICT_MONOTONIC");
                                 else
-                                    variable_property.put(sym, "Monotonicity");
+                                    variable_property.put(sym, "MONOTONIC");
                                  
                                 //Subsitute the range expression of all variables in RHS and simplify
                                 re = (RangeExpression)LoopRangeExpressions.substituteForwardRange(LVV_Value_expr);
@@ -735,28 +731,25 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                             Expression array_subscript = ArraySubscripts.get(sym);
 
                             RangeExpression agg_subscript = null;
-                            if(is_simple_subscript(array_subscript,LoopIdx))
+                            if(is_simple_subscript(array_subscript,LoopIdx)){
                                 agg_subscript =  (RangeExpression)LoopRangeExpressions.substituteForwardRange(array_subscript);
-
-                            ArraySubscripts.put(sym, agg_subscript);
-                            
-                            System.out.println("LVV: " + sym + "\nclass: " + recurrence_class  + "\nAggregate subscript: " + ArraySubscripts.get(sym) +
-                                                    "\nAggregate value range: " + LoopRangeExpressions.getRange(sym) + "\nproperty: " + variable_property.get(sym) +"\n");
+                                Loop_agg_subscripts.put(sym, agg_subscript);
+                            }
+     
+                            // System.out.println("LVV: " + sym + "\nclass: " + recurrence_class  + "\nAggregate subscript: " + ArraySubscripts.get(sym) +
+                            //                         "\nAggregate value range: " + LoopRangeExpressions.getRange(sym) + "\nproperty: " + variable_property.get(sym) +"\n");
 
                         }
-                        else
-                            System.out.println("LVV: " + sym  +"\nclass: " + recurrence_class + 
-                                                    "\nAggregate value range: " + LoopRangeExpressions.getRange(sym) + "\nproperty: " + variable_property.get(sym) +"\n");
+                        // else
+                        //     System.out.println("LVV: " + sym  +"\nclass: " + recurrence_class + 
+                        //                             "\nAggregate value range: " + LoopRangeExpressions.getRange(sym) + "\nproperty: " + variable_property.get(sym) +"\n");
 
                         
                     }
 
-
                }
         
                LoopRangeExpressions.removeRange(LoopIndexSymbol);
-               //System.out.println("=======================================================================\n");
-               
           
         }
     
@@ -1024,28 +1017,6 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
         return result;
     }
 
-    private static boolean CheckSubscriptSubscriptPattern(ForLoop loop){
-
-        LinkedList<Loop> innerloop_list =  LoopTools.calculateInnerLoopNest(loop);
-
-        for(int i = innerloop_list.size()-1; i > 0; i--){
-
-           ForLoop innerloop = (ForLoop)innerloop_list.get(i);
-
-           Expression lb = LoopTools.getLowerBoundExpression(innerloop);
-
-           Expression ub = LoopTools.getUpperBoundExpression(innerloop);
-
-           if(Symbolic.getVariables(lb) == null && Symbolic.getVariables(ub) == null)
-                    return true;
-
-        }
-
-        
-        return false;
-
-
-    }
 
     public static Map<String, RangeDomain> getAggregateRanges(){
         return Loop_agg_ranges;
@@ -1055,7 +1026,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
         return variable_property;
     }
 
-    public static Map<String, Map<Symbol, String>> getAggregateSubscripts(){
+    public static Map<Symbol, Expression> getAggregateSubscripts(){
 
         return Loop_agg_subscripts;
 

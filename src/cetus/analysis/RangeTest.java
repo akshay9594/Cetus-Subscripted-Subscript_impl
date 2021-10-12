@@ -148,7 +148,7 @@ public class RangeTest implements DDTest {
         f_loops.removeAll(common_loops);
         g_loops.removeAll(common_loops);
 
-        //Substitute array subscript expressions in f and g is present
+        //Substitute array subscript expressions in f and g if present
         Expression SubscriptedSubscriptExpr = SubstituteArraySubscripts(common_range, f, g);
         if( SubscriptedSubscriptExpr != null){
 
@@ -251,7 +251,6 @@ public class RangeTest implements DDTest {
                     ub = Symbolic.add(ub, new IntegerLiteral(1));
 
                     if(lb instanceof ArrayAccess && ub instanceof ArrayAccess){
-                           
                         return range;
                     }
                 }
@@ -691,17 +690,101 @@ public class RangeTest implements DDTest {
 
         ret = ( IRTools.containsClass(f, ArrayAccess.class) && 
                 IRTools.containsClass(g, ArrayAccess.class) &&
-                f.equals(g)
+                f.equals(g) && 
+                rtest3(f, g, loop)
              );
 
         return ret;
     }
 
+    /**
+     * Data dependence testing in the presence of subscripted subscript expressions of the form-
+     * [index_array[j]:index_array[j+1]-1]. In this case, the subscripted subscript loop is of the
+     * form :
+     *                  for(j=0; j<n; j++){
+     *                      for(k=index_array[j]; k<index_array[j+1];k++){
+     *                          a[k] = ...;
+     *                      }                      
+     *
+     *                  }
+     * Therefore, f=g= [index_array[j]:index_array[j+1]-1]. The method performs the following tests:
+     * (1) Checks if the index array is a 1D array.
+     * (2) Checks if the subscript expression of the lower bound of f or g is the loop index
+     *      ('j' in the above example) and of the upper bound is loop index plus one.
+     * (3) Checks if a property exists for index_array (MONOTONIC in this case)
+     * (4) Checks if the range of elements of index_array being accessed in the to-be-parallelized
+     *     loop is the same range for which the property exists.
+     * 
+     * @param e1 - Expression 'f'
+     * @param e2 - Expression 'g'
+     * @param loop - The to-be parallelized loop
+     * @return     - True if the test passes, false otherwise
+     */
+
     private boolean rtest3(Expression e1, 
                            Expression e2, 
                             Loop loop){
 
-       
+
+        Expression loop_ub = LoopTools.getUpperBoundExpression(loop) ;
+        Expression loop_lb = LoopTools.getLowerBoundExpression(loop);
+        Expression stride =  LoopTools.getIncrementExpression(loop);
+        RangeExpression loop_range = new RangeExpression(loop_lb, loop_ub);
+        
+        Map<Symbol, String> VarProps_Map = SubscriptedSubscriptAnalysis.getVariableProperties();
+        Map<Symbol,Expression> AggSubs_Map =  SubscriptedSubscriptAnalysis.getAggregateSubscripts();
+
+        ForLoop l = (ForLoop)loop;
+
+        String loop_ant = (l.getAnnotation(PragmaAnnotation.class, "name")).toString();
+
+        //To determine the value of symbolic upper bounds of the subscripted susbcript loop
+        RangeDomain RDCurrentLoop = SubscriptedSubscriptAnalysis.getAggregateRanges().get(loop_ant);
+
+        loop_range = (RangeExpression)RDCurrentLoop.substituteForwardRange(loop_range);
+        //Actual testing begins
+        if(e1 instanceof RangeExpression && e2 instanceof RangeExpression){
+
+            Expression e1_lb = ((RangeExpression)e1).getLB();
+            Expression e1_ub = ((RangeExpression)e1).getUB();
+
+            ArrayAccess indexArray_lb = (ArrayAccess)e1_lb;
+            List<ArrayAccess> indexArrayList_ub = IRTools.getExpressionsOfType(e1_ub, ArrayAccess.class);
+
+            if(indexArrayList_ub.size() > 1){
+                return false;
+            }
+
+            ArrayAccess indexArray_ub = indexArrayList_ub.get(0);
+            //Currently analyzing 1D index Arrays only
+            //Checks at this point - (1) 1D index array, (2) Same array in lb and ub
+            if(indexArray_lb.getIndices().size() == 1 && 
+               indexArray_lb.getArrayName().equals(indexArray_ub.getArrayName())){
+
+                Expression indexArraySubscript_lb = indexArray_lb.getIndex(0);
+                Expression indexArraySubscript_ub = indexArray_ub.getIndex(0);
+
+                //Checks at this point- 
+                // (1) Subscript expression of lb equals loop index,
+                // (2) Subscript expression of ub equals loop index plus one
+                if( indexArraySubscript_lb.equals(LoopTools.getIndexVariable(loop)) &&
+                    Symbolic.add(indexArraySubscript_lb, stride).equals(indexArraySubscript_ub)){
+
+                    String IndexArrayProperty =  VarProps_Map.get(SymbolTools.getSymbolOf(indexArray_lb));
+                    Expression aggregate_subscript = AggSubs_Map.get(SymbolTools.getSymbolOf(indexArray_lb));
+
+                    if(IndexArrayProperty.equals("MONOTONIC") && aggregate_subscript.equals(loop_range))
+                        return true;
+                    else
+                        return false; 
+                }
+          
+            }
+            else    
+                    return false;
+
+        }
+
         return false;
 
 

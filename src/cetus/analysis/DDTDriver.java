@@ -538,7 +538,7 @@ public class DDTDriver extends AnalysisPass {
                         DVset = new ArrayList<DependenceVector>();
                         // Pass pair of accesses to dependence test and
                         // store resulting direction vector set in DVset
-                        
+
                         depExists = ddt.testAccessPair(DVset);
                        
                     }

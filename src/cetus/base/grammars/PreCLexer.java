@@ -60,6 +60,7 @@ tryAgain:
 		try {   // for char stream error handling
 			try {   // for lexical error handling
 
+				// System.out.println("LA(1) = " + Integer.toString(LA(1)) + " , LA(2) = " + Integer.toString(LA(2))  +"\n");
 
 				if ((LA(1)=='#') && (LA(2)=='i') && (LA(3)=='n')) {
 					mInclude(true);

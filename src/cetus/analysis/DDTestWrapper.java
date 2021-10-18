@@ -421,11 +421,10 @@ public class DDTestWrapper {
         //create vector dv=(*,...,*);
         DependenceVector dv = new DependenceVector(loop_nest); 
         // test dependence vector tree starting at (*,*,*,....) vector
-
+        
         if (ddtest.testDependence(dv)) {
             // Test entire tree only if dependence exists in the any(*)
             // direction
-
             testTree(ddtest, dv, 0, dv_list);
         }
         return dv_list;
@@ -476,7 +475,7 @@ public class DDTestWrapper {
         for (int dir = DependenceVector.less;
                 dir <= DependenceVector.greater; dir++) {
             Loop loop = loop_nest.get(pos);
-
+            
             dv.setDirection(loop, dir);
             if (ddtest.testDependence(dv)) {
                 DependenceVector dv_clone = new DependenceVector(dv);
@@ -497,6 +496,7 @@ public class DDTestWrapper {
                 }
             }
             dv.setDirection(loop, DependenceVector.any);
+            
         }
 
         return;

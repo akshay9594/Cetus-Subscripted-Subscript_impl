@@ -36,7 +36,8 @@ public class RangeTest implements DDTest {
     // Which test has passed
     private static final String
             TEST1_PASS = "T1",  // test1 has passed
-            TEST2_PASS = "T2";  // test2 has passed
+            TEST2_PASS = "T2",  // test2 has passed
+            TEST3_PASS = "T3";
 
     // Mask for direction vectors
     private static final int
@@ -335,9 +336,9 @@ public class RangeTest implements DDTest {
     */
     public boolean testDependence(DependenceVector dvec) {
         boolean ret = false;
-
         solve();
         for (int i = 0; i < common_loops.size() && !ret; i++) {
+
             switch (dvec.getDirection(common_loops.get(i))) {
             case DependenceVector.any:
                 ret = (independent_vectors[i] & DV_ANY) == 0;
@@ -438,7 +439,10 @@ public class RangeTest implements DDTest {
 
                 //Test3 for dependence testing in the presence of subscripted subscripts 
                  if(parallel_loops.isEmpty()){
-                    test3(loop, inner_permuted);
+                    if(test3(loop, inner_permuted)){
+                        parallel_loops.put(loop, TEST3_PASS);
+                    }
+                    
                  }
                 permuted.add(loop);
             }
@@ -471,6 +475,7 @@ public class RangeTest implements DDTest {
                 Set<Symbol> symbols_in_pair = SymbolTools.getAccessedSymbols(f);
                 symbols_in_pair.addAll(SymbolTools.getAccessedSymbols(g));
                 symbols_in_pair.remove(index_symbol);
+
                 if (!symbols_in_pair.isEmpty()) {
                     symbols_in_pair.retainAll(
                             getLoopVariants(common_loops.get(i)));
@@ -478,11 +483,12 @@ public class RangeTest implements DDTest {
                 if (symbols_in_pair.isEmpty()) {
                     // Don't care non-relevant loops.
                     independent_vectors[i] |= DV_ANY + DV_LT + DV_GT;
+
                 }
             }
             // Current loop
             independent_vectors[loop_id] |= (DV_LT + DV_GT);       // for test2
-            if (result == TEST1_PASS) {
+            if (result == TEST1_PASS || result == TEST3_PASS) {
                 independent_vectors[loop_id] |= (DV_ANY + DV_EQ);  // for test1
             }
             // Inner loops
@@ -748,32 +754,35 @@ public class RangeTest implements DDTest {
             Expression e1_lb = ((RangeExpression)e1).getLB();
             Expression e1_ub = ((RangeExpression)e1).getUB();
 
-            ArrayAccess indexArray_lb = (ArrayAccess)e1_lb;
-            List<ArrayAccess> indexArrayList_ub = IRTools.getExpressionsOfType(e1_ub, ArrayAccess.class);
+            //Determining f(i)
+            ArrayAccess min1 = (ArrayAccess)e1_lb;
+            List<ArrayAccess> indexArrayList_max1 = IRTools.getExpressionsOfType(e1_ub, ArrayAccess.class);
 
-            if(indexArrayList_ub.size() > 1){
+            if(indexArrayList_max1.size() > 1){
                 return false;
             }
 
-            ArrayAccess indexArray_ub = indexArrayList_ub.get(0);
+            ArrayAccess max1 = indexArrayList_max1.get(0);
+
             //Currently analyzing 1D index Arrays only
             //Checks at this point - (1) 1D index array, (2) Same array in lb and ub
-            if(indexArray_lb.getIndices().size() == 1 && 
-               indexArray_lb.getArrayName().equals(indexArray_ub.getArrayName())){
+            if(min1.getIndices().size() == 1 && 
+               min1.getArrayName().equals(max1.getArrayName())){
 
-                Expression indexArraySubscript_lb = indexArray_lb.getIndex(0);
-                Expression indexArraySubscript_ub = indexArray_ub.getIndex(0);
+                Expression min1Subscript = min1.getIndex(0);
+                Expression max1Subscript = max1.getIndex(0);
 
                 //Checks at this point- 
                 // (1) Subscript expression of lb equals loop index,
                 // (2) Subscript expression of ub equals loop index plus one
-                if( indexArraySubscript_lb.equals(LoopTools.getIndexVariable(loop)) &&
-                    Symbolic.add(indexArraySubscript_lb, stride).equals(indexArraySubscript_ub)){
+                if(min1Subscript.equals(LoopTools.getIndexVariable(loop)) &&
+                    Symbolic.add(min1Subscript, stride).equals(max1Subscript)){
 
-                    String IndexArrayProperty =  VarProps_Map.get(SymbolTools.getSymbolOf(indexArray_lb));
-                    Expression aggregate_subscript = AggSubs_Map.get(SymbolTools.getSymbolOf(indexArray_lb));
+                    String IndexArrayProperty =  VarProps_Map.get(SymbolTools.getSymbolOf(min1));
+                    Expression aggregate_subscript = AggSubs_Map.get(SymbolTools.getSymbolOf(min1));
 
-                    if(IndexArrayProperty.equals("MONOTONIC") && aggregate_subscript.equals(loop_range))
+                    if( IndexArrayProperty !=null &&
+                             IndexArrayProperty.equals("MONOTONIC") && aggregate_subscript.equals(loop_range))
                         return true;
                     else
                         return false; 

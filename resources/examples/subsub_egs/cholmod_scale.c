@@ -39,6 +39,7 @@ int main(){
 
 //Loop to parallelize
   for(j=0;j<n;j++){
+    
     for(k=d[j];k<d[j+1];k++){
 
         Ax[k] = s[j]*Ax[k]*s[Ai[k]];
@@ -46,6 +47,7 @@ int main(){
     }
 
   }
+
 
   return 0;
 

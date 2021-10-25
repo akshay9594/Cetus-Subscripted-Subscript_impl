@@ -1,8 +1,10 @@
 package cetus.transforms;
 
+import cetus.analysis.DDTest;
 import cetus.analysis.LoopTools;
 import cetus.analysis.RangeAnalysis;
 import cetus.analysis.RangeDomain;
+import cetus.analysis.RangeTest;
 import cetus.exec.Driver;
 import cetus.hir.*;
 
@@ -162,7 +164,8 @@ public class ReductionTransform extends TransformPass {
         while (iter.hasNext()) {
             ForLoop loop = iter.next();
             if (loop.containsAnnotation(CetusAnnotation.class, "reduction")) {
-                if (loop.containsAnnotation(CetusAnnotation.class,"parallel")) {
+                if (loop.containsAnnotation(CetusAnnotation.class,"parallel") && 
+                       !(RangeTest.getSubSubParallelLoops().contains(loop)) ) {
                     work_list.add(loop);
                 } else {
                 // It looks more reasonable to remove reduction pragma

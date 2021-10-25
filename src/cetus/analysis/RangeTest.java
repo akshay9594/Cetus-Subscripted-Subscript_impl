@@ -3,6 +3,7 @@ package cetus.analysis;
 import cetus.hir.*;
 import cetus.transforms.TransformPass;
 
+import java.lang.reflect.Array;
 import java.util.*;
 
 /**
@@ -75,6 +76,9 @@ public class RangeTest implements DDTest {
 
     // Common range domain for f and g
     private RangeDomain f_range, g_range, common_range;
+
+    //Parallel subscripted subscript loops (Loops which pass TEST3)
+    public static List<Loop> ParallelSubSubLoops = new ArrayList<Loop>();
 
     // Common/local loop nest
     private LinkedList<Loop>
@@ -441,6 +445,7 @@ public class RangeTest implements DDTest {
                  if(parallel_loops.isEmpty()){
                     if(test3(loop, inner_permuted)){
                         parallel_loops.put(loop, TEST3_PASS);
+                        ParallelSubSubLoops.add(loop);
                     }
                     
                  }
@@ -747,50 +752,40 @@ public class RangeTest implements DDTest {
         //To determine the value of symbolic upper bounds of the subscripted susbcript loop
         RangeDomain RDCurrentLoop = SubscriptedSubscriptAnalysis.getAggregateRanges().get(loop_ant);
 
+        if(RDCurrentLoop == null){
+            return false;
+        }
+
         loop_range = (RangeExpression)RDCurrentLoop.substituteForwardRange(loop_range);
         //Actual testing begins
         if(e1 instanceof RangeExpression && e2 instanceof RangeExpression){
 
-            Expression e1_lb = ((RangeExpression)e1).getLB();
-            Expression e1_ub = ((RangeExpression)e1).getUB();
+            //Determining fmax(i)
+            Expression fmax = ((RangeExpression)e1).getUB();
 
-            //Determining f(i)
-            ArrayAccess min1 = (ArrayAccess)e1_lb;
-            List<ArrayAccess> indexArrayList_max1 = IRTools.getExpressionsOfType(e1_ub, ArrayAccess.class);
+            //Determining gmin(i+1)
+            Expression min2 = ((RangeExpression)e2).getLB();
+            
+            if(min2 instanceof ArrayAccess){
+                ArrayAccess gmin = (ArrayAccess)min2;
 
-            if(indexArrayList_max1.size() > 1){
-                return false;
-            }
+                gmin.setIndex(0,  Symbolic.add(gmin.getIndex(0) , new IntegerLiteral(1)));
 
-            ArrayAccess max1 = indexArrayList_max1.get(0);
+                //Test if fmax(i) < gmin(i+1)
+                if(Symbolic.subtract(gmin, fmax).equals(new IntegerLiteral(1))){
 
-            //Currently analyzing 1D index Arrays only
-            //Checks at this point - (1) 1D index array, (2) Same array in lb and ub
-            if(min1.getIndices().size() == 1 && 
-               min1.getArrayName().equals(max1.getArrayName())){
+                    String property = VarProps_Map.get(SymbolTools.getSymbolOf(gmin));
 
-                Expression min1Subscript = min1.getIndex(0);
-                Expression max1Subscript = max1.getIndex(0);
-
-                //Checks at this point- 
-                // (1) Subscript expression of lb equals loop index,
-                // (2) Subscript expression of ub equals loop index plus one
-                if(min1Subscript.equals(LoopTools.getIndexVariable(loop)) &&
-                    Symbolic.add(min1Subscript, stride).equals(max1Subscript)){
-
-                    String IndexArrayProperty =  VarProps_Map.get(SymbolTools.getSymbolOf(min1));
-                    Expression aggregate_subscript = AggSubs_Map.get(SymbolTools.getSymbolOf(min1));
-
-                    if( IndexArrayProperty !=null &&
-                             IndexArrayProperty.equals("MONOTONIC") && aggregate_subscript.equals(loop_range))
+                    //Check if gmin(i+1) is monotonic
+                    if(property != null && property.equals("MONOTONIC") )
                         return true;
                     else
-                        return false; 
+                        return false;
                 }
-          
-            }
-            else    
+                else
                     return false;
+
+            }
 
         }
 
@@ -917,5 +912,9 @@ public class RangeTest implements DDTest {
         ForLoop floop = (ForLoop)loop;
         return "[" + floop.getInitialStatement() + " " +
             floop.getCondition() + "; " + floop.getStep() + "]";
+    }
+
+    public static List getSubSubParallelLoops(){
+        return ParallelSubSubLoops;
     }
 }

@@ -111,6 +111,7 @@ public class DDTDriver extends AnalysisPass {
         }
         // Run Data-Dependence Tests for entire nest and return the DDG if
         // everything went OK
+
         loopDDGraph = runDDTest(loop, loopArrayAccessMap, loopInfoMap);
         return loopDDGraph;
     }
@@ -576,6 +577,8 @@ public class DDTDriver extends AnalysisPass {
                     }
                 }
             }
+
+           
         }
         PrintTools.printlnStatus(2, loopDDGraph);
         return loopDDGraph;

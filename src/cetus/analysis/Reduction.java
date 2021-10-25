@@ -42,6 +42,7 @@ package cetus.analysis;
 import cetus.exec.Driver;
 import cetus.hir.*;
 
+import java.lang.reflect.Array;
 import java.sql.Ref;
 import java.util.*;
 
@@ -119,6 +120,7 @@ public class Reduction extends AnalysisPass {
                 }
             }
 
+           
             // find reduction variables in a loop
             Map<String, Set<Expression>> reduce_map = analyzeStatement(loop);
             // Insert reduction Annotation to the current loop
@@ -340,6 +342,8 @@ public class Reduction extends AnalysisPass {
                         reduction_set.remove(candidate);     
                     }
 */
+
+                    
                     if (simple_self_dependency_check(
                             (ArrayAccess)candidate, (ForLoop)istmt)) {
                         PrintTools.printlnStatus(2, pass_name,

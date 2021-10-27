@@ -153,6 +153,7 @@ public class RangeTest implements DDTest {
         f_loops.removeAll(common_loops);
         g_loops.removeAll(common_loops);
 
+        Traversable host = f.getParent();
         //Substitute array subscript expressions in f and g if present
         Expression SubscriptedSubscriptExpr = SubstituteArraySubscripts(common_range, f, g);
         if( SubscriptedSubscriptExpr != null){
@@ -179,11 +180,23 @@ public class RangeTest implements DDTest {
         independent_vectors = new int[common_loops.size()];
         // Pseudo-common loops; will be considered in the future if profitable.
         was_solved = false;
+    
         // Eligibility
         is_eligible = //!IRTools.containsClass(f, ArrayAccess.class) &&
                       //!IRTools.containsClass(g, ArrayAccess.class) &&
                       !IRTools.containsClass(f, FunctionCall.class) &&
                       !IRTools.containsClass(g, FunctionCall.class);
+        
+        
+        if(is_eligible && 
+            IRTools.containsClass(f, ArrayAccess.class) &&
+            IRTools.containsClass(g, ArrayAccess.class) &&
+            (f.equals(g))){
+                List<Expression> DefExprs = DataFlowTools.getDefList(outer_most);
+                
+                if(Collections.frequency(DefExprs, host) > 1 )
+                    is_eligible = false;
+        }              
     }
 
     // Set local_loops (f_loops/g_loops) as any loops contained in the outer

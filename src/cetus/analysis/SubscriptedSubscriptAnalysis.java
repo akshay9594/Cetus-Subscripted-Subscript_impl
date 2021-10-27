@@ -802,6 +802,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
             
             //An array can have class 2 recurrence if RHS is an SSR expression
 
+
             if( SSR_var != null && is_simple_subscript(SubscriptExp, LoopIndex)){
 
                 Expression remainder = Symbolic.subtract(ValueExpr, SSR_var);
@@ -809,7 +810,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                 if(!(remainder instanceof ArrayAccess) && is_PNN(remainder))
                     return "Class 2";
             }
-            else{
+            else if(SubscriptExp != null){
                 VariableDeclarator array_vd = (VariableDeclarator)LVV;
                 Expression array_idexpr = array_vd.getID().clone();
                 IntegerLiteral ONE = new IntegerLiteral(1);
@@ -977,6 +978,9 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
      */
 
     private static boolean is_simple_subscript(Expression SubscriptExpr, Expression LoopIndexVar){
+
+        if(SubscriptExpr == null)
+            return false;
 
         if(SubscriptExpr.getChildren().contains(LoopIndexVar) || 
                                 SubscriptExpr.equals(LoopIndexVar)){

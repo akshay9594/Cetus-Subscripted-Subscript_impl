@@ -166,27 +166,17 @@ public class DDTDriver extends AnalysisPass {
        
         // Lower bound for loop is not constant, use range information
         if (!(LoopTools.isLowerBoundConstant(currentLoop))) {
-
-            Expression loop_lb = LoopTools.getLowerBoundExpression(currentLoop);
-
             Expression new_lb = LoopTools.replaceSymbolicLowerBound(
                     currentLoop, loop_range);
-
             // Assign new lower bound to loop in Loop Info
-            if(!(IRTools.containsClass(loop_lb, ArrayAccess.class)))
-                loop_info.setLoopLB(new_lb);
-    
+            loop_info.setLoopLB(new_lb);
         }
         // Upper bound for loop is not constant, use range information
         if (!(LoopTools.isUpperBoundConstant(currentLoop))) {
-
-            Expression loop_ub = LoopTools.getUpperBoundExpression(currentLoop);
-    
             Expression new_ub = LoopTools.replaceSymbolicUpperBound(
                     currentLoop, loop_range);
             // Assign new upper bound to loop in Loop Info
-            if(!( IRTools.containsClass(loop_ub, ArrayAccess.class)))
-                loop_info.setLoopUB(new_ub);
+            loop_info.setLoopUB(new_ub);
         }
 
         // Increment for loop is not constant, use range information
@@ -271,9 +261,19 @@ public class DDTDriver extends AnalysisPass {
                 } else if (o instanceof ArrayAccess) {
                     ArrayAccess acc = (ArrayAccess)o;
                     Statement stmt = acc.getStatement();
-                    DDArrayAccessInfo arrayInfo = new DDArrayAccessInfo(
-                            acc, DDArrayAccessInfo.write_type, loop, stmt);
-                    addArrayAccess(arrayInfo, loopArrayAccessMap);
+
+                    //Handling subscripted subscripts
+                    if((acc.getParent().getParent()) instanceof ArrayAccess){
+                        DDArrayAccessInfo arrayInfo = new DDArrayAccessInfo(
+                            acc, DDArrayAccessInfo.read_type, loop, stmt);
+                            addArrayAccess(arrayInfo, loopArrayAccessMap);
+                    }
+
+                    else{
+                        DDArrayAccessInfo arrayInfo = new DDArrayAccessInfo(
+                                acc, DDArrayAccessInfo.write_type, loop, stmt);
+                        addArrayAccess(arrayInfo, loopArrayAccessMap);
+                    }
                 }
             }
         } else if (root instanceof IfStatement) {

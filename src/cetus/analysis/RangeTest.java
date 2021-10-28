@@ -154,13 +154,6 @@ public class RangeTest implements DDTest {
         g_loops.removeAll(common_loops);
 
         Traversable host = f.getParent();
-        //Substitute array subscript expressions in f and g if present
-        Expression SubscriptedSubscriptExpr = SubstituteArraySubscripts(common_range, f, g);
-        if( SubscriptedSubscriptExpr != null){
-
-            f = common_range.substituteForwardRange(f);
-            g = common_range.substituteForwardRange(g);
-        }
 
         // Relevant loops belong to a subset of the common loops.
         relevant_loops = new LinkedHashSet<Loop>();
@@ -241,45 +234,6 @@ public class RangeTest implements DDTest {
         return ret;
     }
 
-    private static Expression SubstituteArraySubscripts(RangeDomain common_range, Expression f,
-                                                    Expression g){
-
-
-        Set<Symbol> vars = common_range.getSymbols();
-
-        Iterator symbol_iter = vars.iterator();
-
-        while(symbol_iter.hasNext()){
-
-            Symbol sym = (Symbol)symbol_iter.next();
-
-            if(IRTools.containsSymbol(f, sym)){
-
-                Expression range = common_range.getRange(sym);
-
-                //Substitute range into f,g and simplify
-
-                if(range instanceof RangeExpression){
-
-                    RangeExpression range_expr = (RangeExpression)range;
-
-                    Expression lb = range_expr.getLB();
-                    Expression ub = range_expr.getUB();
-
-                    ub = Symbolic.add(ub, new IntegerLiteral(1));
-
-                    if(lb instanceof ArrayAccess && ub instanceof ArrayAccess){
-                        return range;
-                    }
-                }
-
-            }
-
-        }
-
-        return null;
-
-    }
 
     // Returns the range of the given expression with respect to the given set
     // of loops.
@@ -429,9 +383,15 @@ public class RangeTest implements DDTest {
                 } else if (test2(loop, inner_permuted)) {
                     parallel_loops.put(loop, TEST2_PASS);
                     placed = true;
-                } else if (!parallel_loops.containsKey(perm_loop) ||
+                } else if(test3(loop, inner_permuted)){
+                    parallel_loops.put(loop, TEST3_PASS);       //Dependencing testing for subscripted subscripts
+                    placed = true;
+                    ParallelSubSubLoops.add(loop);
+                } 
+                
+                else if (!parallel_loops.containsKey(perm_loop) ||
                            inner_permuted.isEmpty()) {
-
+                    
                     placed = true;
                 } else {
                     inner_permuted.remove(perm_loop);
@@ -453,15 +413,6 @@ public class RangeTest implements DDTest {
                 } else if (test2(loop, inner_permuted)) {
                     parallel_loops.put(loop, TEST2_PASS);
                 }
-
-                //Test3 for dependence testing in the presence of subscripted subscripts 
-                 if(parallel_loops.isEmpty()){
-                    if(test3(loop, inner_permuted)){
-                        parallel_loops.put(loop, TEST3_PASS);
-                        ParallelSubSubLoops.add(loop);
-                    }
-                    
-                 }
                 permuted.add(loop);
             }
 
@@ -749,7 +700,6 @@ public class RangeTest implements DDTest {
                            Expression e2, 
                             Loop loop){
 
-
         Expression loop_ub = LoopTools.getUpperBoundExpression(loop) ;
         Expression loop_lb = LoopTools.getLowerBoundExpression(loop);
         Expression stride =  LoopTools.getIncrementExpression(loop);
@@ -771,36 +721,6 @@ public class RangeTest implements DDTest {
 
         loop_range = (RangeExpression)RDCurrentLoop.substituteForwardRange(loop_range);
         //Actual testing begins
-        if(e1 instanceof RangeExpression && e2 instanceof RangeExpression){
-
-            //Determining fmax(i)
-            Expression fmax = ((RangeExpression)e1).getUB();
-
-            //Determining gmin(i+1)
-            Expression min2 = ((RangeExpression)e2).getLB();
-            
-            if(min2 instanceof ArrayAccess){
-                ArrayAccess gmin = (ArrayAccess)min2;
-
-                gmin.setIndex(0,  Symbolic.add(gmin.getIndex(0) , new IntegerLiteral(1)));
-
-                //Test if fmax(i) < gmin(i+1)
-                if(Symbolic.subtract(gmin, fmax).equals(new IntegerLiteral(1))){
-
-                    String property = VarProps_Map.get(SymbolTools.getSymbolOf(gmin));
-
-                    //Check if gmin(i+1) is monotonic
-                    if(property != null && property.equals("MONOTONIC") )
-                        return true;
-                    else
-                        return false;
-                }
-                else
-                    return false;
-
-            }
-
-        }
 
         return false;
 

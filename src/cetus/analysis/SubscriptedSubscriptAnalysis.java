@@ -1,6 +1,9 @@
 
 package cetus.analysis;
 import cetus.hir.*;
+import cetus.transforms.LoopNormalization;
+import cetus.transforms.TransformPass;
+
 import java.util.*;
 
 
@@ -31,6 +34,7 @@ public class SubscriptedSubscriptAnalysis extends AnalysisPass{
 
     public void start() {
 
+        TransformPass.run(new LoopNormalization(program));
         LoopTools.addLoopName(program);
         DFIterator<Procedure> iter =
                 new DFIterator<Procedure>(program, Procedure.class);

@@ -665,8 +665,9 @@ public class RangeTest implements DDTest {
 
         ret = ( IRTools.containsClass(f, ArrayAccess.class) && 
                 IRTools.containsClass(g, ArrayAccess.class) &&
+                (inner_permloops.size() == 1) &&
                 f.equals(g) && 
-                rtest3(f, g, loop)
+                rtest3(f, g, loop, inner_permloops)
              );
 
         return ret;
@@ -698,19 +699,20 @@ public class RangeTest implements DDTest {
 
     private boolean rtest3(Expression e1, 
                            Expression e2, 
-                            Loop loop){
+                            Loop loop, 
+                           Set<Loop> Innerloops){
 
-        Expression loop_ub = LoopTools.getUpperBoundExpression(loop) ;
-        Expression loop_lb = LoopTools.getLowerBoundExpression(loop);
-        Expression stride =  LoopTools.getIncrementExpression(loop);
-        RangeExpression loop_range = new RangeExpression(loop_lb, loop_ub);
+        Expression Outerloop_ub = LoopTools.getUpperBoundExpression(loop) ;
+        Expression Outerloop_lb = LoopTools.getLowerBoundExpression(loop);
+        Expression OuterLoopstride =  LoopTools.getIncrementExpression(loop);
+        RangeExpression Outerloop_range = new RangeExpression(Outerloop_lb, Outerloop_ub);
         
         Map<Symbol, String> VarProps_Map = SubscriptedSubscriptAnalysis.getVariableProperties();
         Map<Symbol,Expression> AggSubs_Map =  SubscriptedSubscriptAnalysis.getAggregateSubscripts();
 
-        ForLoop l = (ForLoop)loop;
+        ForLoop Outerloop = (ForLoop)loop;
 
-        String loop_ant = (l.getAnnotation(PragmaAnnotation.class, "name")).toString();
+        String loop_ant = (Outerloop.getAnnotation(PragmaAnnotation.class, "name")).toString();
 
         //To determine the value of symbolic upper bounds of the subscripted susbcript loop
         RangeDomain RDCurrentLoop = SubscriptedSubscriptAnalysis.getAggregateRanges().get(loop_ant);
@@ -719,8 +721,31 @@ public class RangeTest implements DDTest {
             return false;
         }
 
-        loop_range = (RangeExpression)RDCurrentLoop.substituteForwardRange(loop_range);
+        Outerloop_range = (RangeExpression)RDCurrentLoop.substituteForwardRange(Outerloop_range);
         //Actual testing begins
+
+        DFIterator giter = new DFIterator<>(g);
+
+        Expression g_nextiter = null;
+        while(giter.hasNext()){
+
+            Object o = giter.next();
+
+            if(o instanceof Expression && 
+                ((Expression)o).equals(LoopTools.getIndexVariable(Outerloop))){
+
+                  o = Symbolic.add((Expression)o , new IntegerLiteral(1));
+
+                  g_nextiter = g.clone();
+                  IRTools.replaceAll(g_nextiter, LoopTools.getIndexVariable(Outerloop) , (Expression)o);
+            }
+        }
+
+        if(g_nextiter != null){
+
+            Expression difference = Symbolic.subtract(g_nextiter , f);
+        }
+           
 
         return false;
 

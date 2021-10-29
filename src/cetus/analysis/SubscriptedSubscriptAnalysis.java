@@ -34,7 +34,6 @@ public class SubscriptedSubscriptAnalysis extends AnalysisPass{
 
     public void start() {
 
-        TransformPass.run(new LoopNormalization(program));
         LoopTools.addLoopName(program);
         DFIterator<Procedure> iter =
                 new DFIterator<Procedure>(program, Procedure.class);

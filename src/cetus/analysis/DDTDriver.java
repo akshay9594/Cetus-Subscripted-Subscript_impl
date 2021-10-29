@@ -541,6 +541,7 @@ public class DDTDriver extends AnalysisPass {
                         // store resulting direction vector set in DVset
 
                         depExists = ddt.testAccessPair(DVset);
+
                        
                     }
                     // The expressions are conservatively aliased, we cannot

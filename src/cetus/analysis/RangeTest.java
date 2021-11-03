@@ -735,7 +735,7 @@ public class RangeTest implements DDTest {
             if(o instanceof Expression && 
                 ((Expression)o).equals(LoopTools.getIndexVariable(Outerloop))){
 
-                  o = Symbolic.add((Expression)o , new IntegerLiteral(1));
+                  o = Symbolic.add((Expression)o , OuterLoopstride);
 
                   g_nextiter = g.clone();
                   IRTools.replaceAll(g_nextiter, LoopTools.getIndexVariable(Outerloop) , (Expression)o);
@@ -746,14 +746,17 @@ public class RangeTest implements DDTest {
 
             Expression difference = Symbolic.subtract(g_nextiter , f);
             ArrayAccess index_array = IRTools.getExpressionsOfType(f, ArrayAccess.class).get(0);
-
             Expression innerloop_ub = LoopTools.getUpperBoundExpression(innerloop);
 
             if(difference.equals(Symbolic.add(innerloop_ub, new IntegerLiteral(1)) )){
                 
                 String property = VarProps_Map.get(SymbolTools.getSymbolOf(index_array));
 
-                if( property.equals("MONOTONIC") || property.equals("STRICT_MONOTONIC")){
+                RangeExpression Subscript_range = 
+                                    (RangeExpression)AggSubs_Map.get(SymbolTools.getSymbolOf(index_array));
+
+                if( property.equals("MONOTONIC") || property.equals("STRICT_MONOTONIC") &&
+                    Subscript_range.equals(Outerloop_range)){
 
                     return true;
                 }

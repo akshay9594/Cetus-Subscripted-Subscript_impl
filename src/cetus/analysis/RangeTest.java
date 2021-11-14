@@ -685,9 +685,8 @@ public class RangeTest implements DDTest {
      *                  }
      * Therefore, f=g= [index_array[j]:index_array[j+1]-1]. The method performs the following tests:
      * (1) Checks if the index array is a 1D array.
-     * (2) Checks if the subscript expression of the lower bound of f or g is the loop index
-     *      ('j' in the above example) and of the upper bound is loop index plus one.
-     * (3) Checks if a property exists for index_array (MONOTONIC in this case)
+     * (2) Checks if fmax(j) < gmin(j+1)
+     * (3) Checks if gmin is Monotonic
      * (4) Checks if the range of elements of index_array being accessed in the to-be-parallelized
      *     loop is the same range for which the property exists.
      * 
@@ -702,22 +701,25 @@ public class RangeTest implements DDTest {
                             Loop loop, 
                            Set<Loop> Innerloops){
 
-        Expression Outerloop_ub = LoopTools.getUpperBoundExpression(loop) ;
-        Expression Outerloop_lb = LoopTools.getLowerBoundExpression(loop);
-        Expression OuterLoopstride =  LoopTools.getIncrementExpression(loop);
-        RangeExpression Outerloop_range = new RangeExpression(Outerloop_lb, Outerloop_ub);
+      
         Loop innerloop = Innerloops.iterator().next();
+
+        ForLoop Outerloop = (ForLoop)loop;
+        ForLoop Innerloop = (ForLoop)innerloop;
+
+        Expression OuterLoopstride =  LoopTools.getIncrementExpression(Outerloop);
+        RangeExpression Outerloop_range = getLoopRange(Outerloop);
+        RangeExpression Innerloop_range = getLoopRange(Innerloop);
+
 
         Map<Symbol, String> VarProps_Map = SubscriptedSubscriptAnalysis.getVariableProperties();
         Map<Symbol,Expression> AggSubs_Map =  SubscriptedSubscriptAnalysis.getAggregateSubscripts();
 
-        ForLoop Outerloop = (ForLoop)loop;
-
-        String loop_ant = (Outerloop.getAnnotation(PragmaAnnotation.class, "name")).toString();
-
+        String Outerloop_ant = (Outerloop.getAnnotation(PragmaAnnotation.class, "name")).toString();
+    
         //To determine the value of symbolic upper bounds of the subscripted susbcript loop
-        RangeDomain RDCurrentLoop = SubscriptedSubscriptAnalysis.getAggregateRanges().get(loop_ant);
-
+        RangeDomain RDCurrentLoop = SubscriptedSubscriptAnalysis.getAggregateRanges().get(Outerloop_ant);
+      
         if(RDCurrentLoop == null){
             return false;
         }
@@ -741,14 +743,23 @@ public class RangeTest implements DDTest {
                   IRTools.replaceAll(g_nextiter, LoopTools.getIndexVariable(Outerloop) , (Expression)o);
             }
         }
+        
+
 
         if(g_nextiter != null){
 
-            Expression difference = Symbolic.subtract(g_nextiter , f);
-            ArrayAccess index_array = IRTools.getExpressionsOfType(f, ArrayAccess.class).get(0);
-            Expression innerloop_ub = LoopTools.getUpperBoundExpression(innerloop);
+            Expression index_array_expr = Symbolic.subtract(f, LoopTools.getIndexVariable(Innerloop) );
+        
+            Expression fmax = Symbolic.add(index_array_expr, Innerloop_range.getUB());
+    
+            index_array_expr = Symbolic.subtract(g_nextiter, LoopTools.getIndexVariable(Innerloop));
+            Expression gmin = Symbolic.add(index_array_expr, Innerloop_range.getLB());
 
-            if(difference.equals(Symbolic.add(innerloop_ub, new IntegerLiteral(1)) )){
+            Expression difference = Symbolic.subtract(gmin , fmax);
+
+            ArrayAccess index_array = IRTools.getExpressionsOfType(gmin, ArrayAccess.class).get(0);
+
+            if( Symbolic.gt(difference, new IntegerLiteral(0)).equals(difference)){
                 
                 String property = VarProps_Map.get(SymbolTools.getSymbolOf(index_array));
 
@@ -770,6 +781,16 @@ public class RangeTest implements DDTest {
            
 
         return false;
+
+
+    }
+
+    private static RangeExpression getLoopRange(ForLoop loop){
+
+        Expression loop_ub = LoopTools.getUpperBoundExpression(loop) ;
+        Expression loop_lb = LoopTools.getLowerBoundExpression(loop);
+        return new RangeExpression(loop_lb, loop_ub);
+
 
 
     }

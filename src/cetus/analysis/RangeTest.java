@@ -161,12 +161,13 @@ public class RangeTest implements DDTest {
             Loop loop = common_loops.get(i);
             Identifier index = (Identifier)LoopTools.getIndexVariable(loop);
             Symbol index_sym = index.getSymbol();
-           
-            if (IRTools.containsSymbol(f, index_sym) ||
-                IRTools.containsSymbol(g, index_sym)) {
-                
-                relevant_loops.add(loop);
-            }
+        
+                if (IRTools.containsSymbol(f, index_sym) ||
+                    IRTools.containsSymbol(g, index_sym)) {
+                    
+                        relevant_loops.add(loop);
+                }
+
         }
 
         parallel_loops = new LinkedHashMap<Loop, String>();
@@ -383,7 +384,8 @@ public class RangeTest implements DDTest {
                 } else if (test2(loop, inner_permuted)) {
                     parallel_loops.put(loop, TEST2_PASS);
                     placed = true;
-                } else if(test3(loop, inner_permuted)){
+                }
+                else if(test3(loop, inner_permuted)){
                     parallel_loops.put(loop, TEST3_PASS);       //Dependencing testing for subscripted subscripts
                     placed = true;
                     ParallelSubSubLoops.add(loop);
@@ -413,6 +415,7 @@ public class RangeTest implements DDTest {
                 } else if (test2(loop, inner_permuted)) {
                     parallel_loops.put(loop, TEST2_PASS);
                 }
+               
                 permuted.add(loop);
             }
 
@@ -710,7 +713,6 @@ public class RangeTest implements DDTest {
         Expression OuterLoopstride =  LoopTools.getIncrementExpression(Outerloop);
         RangeExpression Outerloop_range = getLoopRange(Outerloop);
         RangeExpression Innerloop_range = getLoopRange(Innerloop);
-
 
         Map<Symbol, String> VarProps_Map = SubscriptedSubscriptAnalysis.getVariableProperties();
         Map<Symbol,Expression> AggSubs_Map =  SubscriptedSubscriptAnalysis.getAggregateSubscripts();

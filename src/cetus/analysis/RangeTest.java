@@ -387,7 +387,12 @@ public class RangeTest implements DDTest {
                     parallel_loops.put(loop, TEST3_PASS);       //Dependencing testing for subscripted subscripts
                     placed = true;
                     ParallelSubSubLoops.add(loop);
-                } 
+                }
+                else if(test4(loop, inner_permuted)){
+                    parallel_loops.put(loop, TEST3_PASS);       //Dependencing testing for subscripted subscripts
+                    placed = true;
+                    ParallelSubSubLoops.add(loop);
+                }  
                 
                 else if (!parallel_loops.containsKey(perm_loop) ||
                            inner_permuted.isEmpty()) {
@@ -673,6 +678,18 @@ public class RangeTest implements DDTest {
         return ret;
     }
 
+    private boolean test4(Loop loop, Set<Loop> inner_permloops){
+
+        boolean ret = false;
+
+        ret = ( IRTools.containsClass(f, ArrayAccess.class) && 
+                IRTools.containsClass(g, ArrayAccess.class) &&
+                rtest4(f, g, loop, inner_permloops)
+             );
+
+        return ret;
+    }
+
     /**
      * Data dependence testing in the presence of subscripted subscript expressions of the form-
      * [index_array[j]:index_array[j+1]-1]. In this case, the subscripted subscript loop is of the
@@ -785,13 +802,105 @@ public class RangeTest implements DDTest {
 
     }
 
+    private boolean rtest4(Expression e1, 
+                            Expression e2, 
+                            Loop loop, 
+                            Set<Loop> Innerloops){
+
+        Map<Symbol, String> VarProps_Map = SubscriptedSubscriptAnalysis.getVariableProperties();
+        ForLoop CurrentLoop = (ForLoop)loop;
+
+        Expression Loopstride =  LoopTools.getIncrementExpression(CurrentLoop);
+        Expression CurrentIter = LoopTools.getIndexVariable(CurrentLoop);
+
+        //Getting the Aggregate range values for LVVs w.r.t current loop from SubSub Analysis pass
+        String loop_ant = (CurrentLoop.getAnnotation(PragmaAnnotation.class, "name")).toString();
+        RangeDomain RDCurrentLoop = SubscriptedSubscriptAnalysis.getAggregateRanges().get(loop_ant);
+        
+        //Determine the index array and it's value range from range analysis
+        ArrayAccess index_array = IRTools.getDescendentsOfType(e1, ArrayAccess.class).get(0);
+        Symbol index_array_name = SymbolTools.getSymbolOf(index_array.getArrayName());
+        RangeExpression index_array_val = (RangeExpression)RDCurrentLoop.getRange(index_array_name);
+
+        List<IfStatement> Conditional_stmts = IRTools.getStatementsOfType(loop, IfStatement.class);
+       
+        if(Conditional_stmts != null){
+
+            index_array_val = AnalyzeLoopConditionals(Conditional_stmts, index_array , 
+                                                                index_array_name,index_array_val);
+        
+            System.out.println("Modified index array range: " + index_array_val +"\n");
+        }
+
+        if(!VarProps_Map.keySet().contains(index_array_name)){
+
+            if(Symbolic.subtract(e1, e2).equals(new IntegerLiteral(0))||
+               Symbolic.subtract(e1, e2).equals(new IntegerLiteral(1))){
+                
+                Expression f_iter = e1.clone();
+                Expression g_iter = e2.clone();
+                IRTools.replaceAll(f_iter, index_array, index_array_val.getUB());
+                IRTools.replaceAll(g_iter, index_array, index_array_val.getLB());
+
+                if(!IRTools.containsExpression(f_iter,CurrentIter) &&
+                    !IRTools.containsExpression(g_iter,CurrentIter))
+                        
+                        return false;
+                else
+                    {
+                            Expression nextiter = Symbolic.add(CurrentIter,Loopstride);
+                            IRTools.replaceAll(g_iter, CurrentIter, nextiter);
+                            Expression g_nextiter =  Symbolic.simplify(g_iter);
+                    }
+
+               }
+               else
+                    return false;
+               
+
+        }
+
+        
+        return false;
+    }
+
     private static RangeExpression getLoopRange(ForLoop loop){
 
         Expression loop_ub = LoopTools.getUpperBoundExpression(loop) ;
         Expression loop_lb = LoopTools.getLowerBoundExpression(loop);
         return new RangeExpression(loop_lb, loop_ub);
+    }
 
+    private static RangeExpression AnalyzeLoopConditionals(List<IfStatement> Conditional_stmts, 
+                                                ArrayAccess index_array ,Symbol index_array_name, RangeExpression index_array_val){
+            
+        BinaryExpression id_expr = null;
 
+            for(int i =0; i< Conditional_stmts.size(); i++){
+                IfStatement if_stmt = Conditional_stmts.get(i);
+                Expression Control_expr = if_stmt.getControlExpression();
+                List<Traversable> list_exprs = Control_expr.getChildren();
+                for(Traversable e : list_exprs){
+                    if(IRTools.containsSymbol(e, index_array_name)){
+                        RangeDomain rd = RangeAnalysis.query(if_stmt);
+                        id_expr = (BinaryExpression)rd.substituteForwardRange((Expression)e);
+                    }
+                        
+                }
+            }
+        
+        if(id_expr != null){
+            if(id_expr.getLHS().equals(index_array)){
+                BinaryOperator opr = id_expr.getOperator();
+                if(opr.equals(BinaryOperator.COMPARE_GE))
+                    return new RangeExpression(id_expr.getRHS().clone(), index_array_val.getUB().clone());
+                
+                else if(opr.equals(BinaryOperator.COMPARE_LE))
+                    return new RangeExpression(index_array_val.getLB().clone(), id_expr.getRHS().clone());
+            }
+        }
+         
+        return null;
 
     }
 

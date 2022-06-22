@@ -22,7 +22,7 @@ for(i = 0; i < N; i++)
    Map[i] = -1;
 } 
 
-for(k = 0; k < nsrow; k++)
+for(k = 0; k < N; k++)
 {
     Map[Ls[psi + k]] = k;
 }
@@ -39,7 +39,7 @@ for(k=k1; k<k2; k++)
         i = Ai[p];
         if(i>=k && Map[i]>=0)
         {
-           q = (Map[i]+psx+(k-k1)*nsrow);
+           q = (Map[i]+psx+(k-k1)*N);
            Lx[2*q] += Ax[2*p]*fjk[0]-Ax[2*p+1]*fjk[1];
            Lx[2*q+1] += Ax[2*p+1]*fjk[0]-Ax[2*p]*fjk[1];
         }

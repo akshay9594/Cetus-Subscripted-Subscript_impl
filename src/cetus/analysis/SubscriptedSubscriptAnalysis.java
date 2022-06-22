@@ -39,6 +39,7 @@ public class SubscriptedSubscriptAnalysis extends AnalysisPass{
                 new DFIterator<Procedure>(program, Procedure.class);
         iter.pruneOn(Procedure.class);
         iter.pruneOn(Declaration.class);
+
         while (iter.hasNext()) {
             Procedure procedure = iter.next();
 
@@ -721,8 +722,16 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                             break;
                             case "Unknown Class":
                             //If none of the classes are recognized and the value expression is not constant, the aggregated value is unknown
-                               if(!is_constant(LVV_Value_expr))
-                                    LoopRangeExpressions.setRange(sym, new StringLiteral("bot"));
+                               if(!is_constant(LVV_Value_expr) && RangeValsBeforeLoop!=null 
+                                                        && RangeValsBeforeLoop.getSymbols().contains(sym)){
+                                    Expression SubValue = LoopRangeExpressions.substituteForwardRange(LVV_Value_expr);
+                                    RangeDomain rd = new RangeDomain();
+                                    rd.setRange(sym, SubValue);
+                                    rd.unionRanges(RangeValsBeforeLoop);
+                                     LoopRangeExpressions.setRange(sym, rd.getRange(sym));
+                               }
+                            //    else
+                            //         LoopRangeExpressions.setRange(sym, new StringLiteral("bot"));
                             break;
                             
                                
@@ -736,10 +745,23 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                             RangeExpression agg_subscript = null;
                             if(is_simple_subscript(array_subscript,LoopIdx)){
                                 agg_subscript =  (RangeExpression)LoopRangeExpressions.substituteForwardRange(array_subscript);
-                                Loop_agg_subscripts.put(sym, agg_subscript);
+                                Object o = sym.getArraySpecifiers().get(0);
+                                //Check if the entire length of the array is modified.
+                                //If yes, then proceed with aggregation of the subscript.
+                                if(o instanceof ArraySpecifier){
+                                    Expression arr_len = ((ArraySpecifier)o).getDimension(0);
+                                   if((Symbolic.add(agg_subscript.getUB(),agg_subscript.getStride())).equals(arr_len))
+                                        Loop_agg_subscripts.put(sym, agg_subscript);        
+                                }
+                                else     
+                                    Loop_agg_subscripts.put(sym, new StringLiteral("bot"));                          
+                                
                             }
+                            else if(!Loop_agg_subscripts.keySet().contains(sym))
+                                        Loop_agg_subscripts.put(sym, new StringLiteral("bot"));
+                                
      
-                            // System.out.println("LVV: " + sym + "\nclass: " + recurrence_class  + "\nAggregate subscript: " + ArraySubscripts.get(sym) +
+                            // System.out.println("LVV: " + sym + "\nclass: " + recurrence_class  + "\nAggregate subscript: " + Loop_agg_subscripts.get(sym) +
                             //                         "\nAggregate value range: " + LoopRangeExpressions.getRange(sym) + "\nproperty: " + variable_property.get(sym) +"\n");
 
                         }
@@ -785,16 +807,21 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
 
             VariableDeclarator vd = (VariableDeclarator)LVV;
             IDExpression idexpr = vd.getID();
-            RangeExpression re = (RangeExpression)ValueExpr;
-            Expression inc_expr_lb = Symbolic.subtract(re.getLB(), idexpr);
-            Expression inc_expr_ub = Symbolic.subtract(re.getUB() , idexpr);
-            increment_expression = new RangeExpression(inc_expr_lb, inc_expr_ub);
-            //Check if the increment expression is Positive or Non-negative
-           
-            if(is_PNN(increment_expression))
-                    return "Class 1";
+
+            if(ValueExpr instanceof RangeExpression){
+                RangeExpression re = (RangeExpression)ValueExpr;
+                Expression inc_expr_lb = Symbolic.subtract(re.getLB(), idexpr);
+                Expression inc_expr_ub = Symbolic.subtract(re.getUB() , idexpr);
+                increment_expression = new RangeExpression(inc_expr_lb, inc_expr_ub);
+                //Check if the increment expression is Positive or Non-negative
             
-            return "Unknown Class";
+                if(is_PNN(increment_expression))
+                        return "Class 1";
+                
+                return "Unknown Class";
+            }
+            else
+                return "Unknown Class";
             
         }
         else{

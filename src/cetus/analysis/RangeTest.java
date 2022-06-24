@@ -804,6 +804,20 @@ public class RangeTest implements DDTest {
 
     }
 
+    /**
+     * Data dependence testing in the presence of a subscripted subscript expression - e.g. q=(Map[i]+psx+k_0*n);
+     * .In this case, the value range of the subscript array (Map) is used to prove that the range of all 
+     * possible values for the subscript expression ('q' above) is non-overlapping across iterations of the 
+     * enclosing loop. The necessary conditions are the same as rtest2.
+     * 
+     * @param e1 - The first expression (f)
+     * @param e2 - The second expression (g)
+     * @param loop - The enclosing outer loop
+     * @param Innerloops - The inner loops
+     * @return   - True if no dependence exists, false otherwise.
+     */
+
+
     private boolean rtest4(Expression e1, 
                             Expression e2, 
                             Loop loop, 
@@ -826,33 +840,48 @@ public class RangeTest implements DDTest {
 
         List<IfStatement> Conditional_stmts = IRTools.getStatementsOfType(loop, IfStatement.class);
        
+        //Analyze the conditional statements and incorporate constraints on the index array,
+        //in the range expression for the array.
         if(Conditional_stmts != null){
 
             index_array_val = AnalyzeLoopConditionals(Conditional_stmts, index_array , 
                                                                 index_array_name,index_array_val);
-        
-            System.out.println("Modified index array range: " + index_array_val +"\n");
+
         }
 
+        //If no property exists for the index array, analyze it's value expression
         if(!VarProps_Map.keySet().contains(index_array_name)){
 
+            //Only analyze f and g, where (f-g >= 0), since we want to find fmax and gmin
             if(Symbolic.subtract(e1, e2).equals(new IntegerLiteral(0))||
                Symbolic.subtract(e1, e2).equals(new IntegerLiteral(1))){
                 
                 Expression f_iter = e1.clone();
                 Expression g_iter = e2.clone();
+                //Replace the subscript array with it's value range
                 IRTools.replaceAll(f_iter, index_array, index_array_val.getUB());
                 IRTools.replaceAll(g_iter, index_array, index_array_val.getLB());
 
+                //Reanalyze and determine relevant loops.(Loop index variable should appear in f and g)
                 if(!IRTools.containsExpression(f_iter,CurrentIter) &&
                     !IRTools.containsExpression(g_iter,CurrentIter))
                         
                         return false;
                 else
                     {
+                            //Determine if fmax(k) < gmin(k+1), where 'k' is the loop index and 
+                            // if gmin is monotonically increasing.
                             Expression nextiter = Symbolic.add(CurrentIter,Loopstride);
                             IRTools.replaceAll(g_iter, CurrentIter, nextiter);
+                            f_iter =  Symbolic.simplify(f_iter);
                             Expression g_nextiter =  Symbolic.simplify(g_iter);
+                            Expression difference = Symbolic.subtract(g_nextiter, f_iter);
+                            if(Symbolic.gt(difference, new IntegerLiteral(0)).equals(difference) &&
+                                getMonoState(g_nextiter, g_nextiter, loop) == MONO_NONDEC){
+                                return true;
+                            }
+                            else
+                                return false;
                     }
 
                }
@@ -873,6 +902,8 @@ public class RangeTest implements DDTest {
         return new RangeExpression(loop_lb, loop_ub);
     }
 
+    //Helper method to analyze all the conditional statements and derive binary expressions
+    // containing the subscript array.
     private static RangeExpression AnalyzeLoopConditionals(List<IfStatement> Conditional_stmts, 
                                                 ArrayAccess index_array ,Symbol index_array_name, RangeExpression index_array_val){
             

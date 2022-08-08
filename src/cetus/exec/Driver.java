@@ -831,6 +831,8 @@ public class Driver {
         if (getOptionValue("profile-loops") != null) {
             TransformPass.run(new LoopProfiler(program));
         }
+
+        
     }
 
     /**

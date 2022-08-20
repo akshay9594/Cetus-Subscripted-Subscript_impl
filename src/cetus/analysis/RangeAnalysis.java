@@ -1258,8 +1258,10 @@ public class RangeAnalysis extends AnalysisPass
         }
         // Update successors.
         //System.out.println("ranges out " + ranges_out +"\n");
+      
         for (DFANode succ : node.getSuccs()) {
             succ.putPredData(node, ranges_out);
+            //System.out.println("update: "+succ.getData("ir") + ", ranges: " + succ.getPredData(node));
         }
     }
 

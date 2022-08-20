@@ -150,43 +150,87 @@ private static void wrapper(CFGraph SubroutineGraph){
 
                 outermost_for_loop = (ForLoop)node.getData("stmt");
 
+                LinkedList<Loop>Loops_in_Nest =  new LinkedList();
+                Loops_in_Nest = LoopTools.calculateInnerLoopNest(outermost_for_loop);
+                Loops_in_Nest.remove(0);
+                Loops_in_Nest.add(outermost_for_loop);
+
+         
+                if(!IdentifySubSubLoop(Loops_in_Nest))
+                {
                 //Perform the analysis for loops that do not contain subscripted susbcript pattern and
                 //loops that do not contain any function calls
         
                     //Store the range dictionary of the node immediately before the loop header
                     RangeValuesBeforeCurrentLoop.put(LoopTools.getLoopName(outermost_for_loop), new RangeDomain(curr_ranges));
-                    
-                    DFIterator<ForLoop> forLoopIter = new DFIterator(outermost_for_loop, ForLoop.class);
-                    LinkedList<Loop>Loops_in_Nest =  new LinkedList();
-
                 
-                    while(forLoopIter.hasNext()){
+                    CFGraph OuterLoopCFG = new CFGraph(outermost_for_loop);
+                    OuterLoopCFG.normalize();                               //Important step after creating a CFGraph
 
-                        Loops_in_Nest.addFirst(forLoopIter.next());
-                    }
-            
-                    for(int i = 0 ; i < Loops_in_Nest.size(); i++){
+                    CFGraph LoopControlFlowGraph = null;
 
-                        ForLoop innerloop = (ForLoop)Loops_in_Nest.get(i);
-                    
-                        CFGraph LoopControlFlowGraph = new CFGraph(innerloop);
-                        LoopControlFlowGraph.normalize();
+                    if(Loops_in_Nest.size() > 1){
 
-                        if(i > 0){
-                            DFANode Collapsed_innerloopNode = CollapseLoopinCFG(LoopControlFlowGraph, (ForLoop)Loops_in_Nest.get(i-1), null);
-                            //System.out.println("collap node: " + Collapsed_innerloopNode.getData("tag") + " , range: " + Collapsed_innerloopNode.getData("ranges") +"\n");
+                        for(int i=0; i < Loops_in_Nest.size(); i++){
+
+                            ForLoop innerloop = (ForLoop)Loops_in_Nest.get(i);
+                        
+                            if(innerloop.equals(outermost_for_loop)){
+                                LoopControlFlowGraph = OuterLoopCFG;
+                            }
+                            else{
+                                LoopControlFlowGraph = new CFGraph(innerloop);
+                                LoopControlFlowGraph.normalize();
+                            }
+
+                            SubSubAnalysis(innerloop, LoopControlFlowGraph ,
+                            RangeValuesBeforeCurrentLoop.get(LoopTools.getLoopName(outermost_for_loop)));
+
+                            if(innerloop.equals(outermost_for_loop)){
+                                node = CollapseLoopinCFG(SubroutineGraph, outermost_for_loop, node);
+                            }
+                            else
+                                CollapseLoopinCFG(OuterLoopCFG, innerloop, null);
+
+                           
+
                         }
-
-                        //System.out.println("=======================================================================\n");
-                        //Phase 1 Called
-                        SubSubAnalysis(innerloop, LoopControlFlowGraph ,
-                                                    RangeValuesBeforeCurrentLoop.get(LoopTools.getLoopName(outermost_for_loop)));
-
-
-
+                    }
+                    else{
+                             SubSubAnalysis(outermost_for_loop, OuterLoopCFG ,
+                                     RangeValuesBeforeCurrentLoop.get(LoopTools.getLoopName(outermost_for_loop)));
+                             node = CollapseLoopinCFG(SubroutineGraph, outermost_for_loop, node);
                     }
 
-                    node = CollapseLoopinCFG(SubroutineGraph, outermost_for_loop, node);
+                    // CFGraph LoopControlFlowGraph = null;
+                    // for(int i = 0 ; i < Loops_in_Nest.size(); i++){
+
+                    //     ForLoop innerloop = (ForLoop)Loops_in_Nest.get(i);
+                    
+                    //     LoopControlFlowGraph = new CFGraph(innerloop);
+                    //     LoopControlFlowGraph.normalize();
+
+                    //     if(i > 0){
+                    //         CollapseLoopinCFG(LoopControlFlowGraph, (ForLoop)Loops_in_Nest.get(i-1), null);
+                    //         //System.out.println("collap node: " + Collapsed_innerloopNode.getData("tag") + " , range: " + Collapsed_innerloopNode.getData("ranges") +"\n");
+                    //     }
+
+                    //     //System.out.println("=======================================================================\n");
+                    //     //Phase 1 Called
+                    //     SubSubAnalysis(innerloop, LoopControlFlowGraph ,
+                    //                                 RangeValuesBeforeCurrentLoop.get(LoopTools.getLoopName(outermost_for_loop)));
+
+
+
+                    // }
+
+                    // node = CollapseLoopinCFG(SubroutineGraph, outermost_for_loop, node);
+                }
+                else{
+                    String Outerloop_ant = (outermost_for_loop.getAnnotation(PragmaAnnotation.class, "name")).toString();
+                    Loop_agg_ranges.put(Outerloop_ant, curr_ranges);
+    
+                }
                 
             
             }
@@ -268,15 +312,14 @@ private static void wrapper(CFGraph SubroutineGraph){
         input_CFG.topologicalSort(input_CFG.getNodeWith("stmt", "ENTRY"));
 
         DFANode entry = input_CFG.getNodeWith("stmt", "ENTRY");
-       
-
+    
         if(OutermostLoopNode != null){
             nodes_list.put((Integer)OutermostLoopNode.getData("top-order"), OutermostLoopNode);
         }
         else
             nodes_list.put((Integer) entry.getData("top-order"), entry);
             
-
+        //System.out.println("Loop to collap: " + loop_to_collapse +"\n");
         List<DFANode> Nodes_to_Remove = new ArrayList<>();
         Set<DFANode> innerLoopPreds = null;
         Set<DFANode> innerLoopSuccs = null;
@@ -294,6 +337,11 @@ private static void wrapper(CFGraph SubroutineGraph){
             Integer node_num = nodes_list.firstKey();
             DFANode node = nodes_list.remove(node_num);
 
+            // if(node.getData("ir") != null)
+            // System.out.println(" node: " + node.getData("ir")  +"\n");
+            // else
+            // System.out.println(" node: " + node.getData("tag") +"\n");
+
             Integer visits = node.getData("num-visits"); 
             
             if (visits == null) {
@@ -306,9 +354,8 @@ private static void wrapper(CFGraph SubroutineGraph){
             if(node.getData("stmt") instanceof ForLoop){
 
                 ForLoop innerloop = (ForLoop)node.getData("stmt");
-
+                //System.out.println("inner loop: " + innerloop + " ,collap loop: " + loop_to_collapse +"\n");
                 if(innerloop.equals(loop_to_collapse)){
-                   
                     innerloopannotation = innerloop.getAnnotation(PragmaAnnotation.class, "name");
                     innerLoopPreds = node.getPreds();
                     Nodes_to_Remove.add(node);
@@ -321,6 +368,8 @@ private static void wrapper(CFGraph SubroutineGraph){
                 Nodes_to_Remove.add(node);
 
             }
+
+            
 
             if(node.getData("tag")!= null && node.getData("tag").equals("FOREXIT")){
                 NumberForExits++;
@@ -351,12 +400,12 @@ private static void wrapper(CFGraph SubroutineGraph){
         
                 for (DFANode succ : node.getSuccs()) {
                     
+
                     nodes_list.put((Integer)succ.getData("top-order"), succ);
                         
                 }
                 
             }
-
 
             input_CFG.removeNodes(Nodes_to_Remove);
 
@@ -373,6 +422,7 @@ private static void wrapper(CFGraph SubroutineGraph){
             }
         
             for(DFANode succ: innerLoopSuccs){
+                //System.out.println("succ: " + succ.getData("ir") + "\n");
                 input_CFG.addEdge(collap_node, succ);
                 collap_node.putData("true", succ);
                 //System.out.println("collap node: " + collap_node.getData("tag") +" , succ: " + succ.getData("ir") +"\n");
@@ -385,8 +435,10 @@ private static void wrapper(CFGraph SubroutineGraph){
                     input_CFG.getNode(j).putData("num-visits", null);
                 }
             }
-        
-            return collap_node;
+
+    
+            //System.out.println("Collap node: " + collap_node.getData("tag") + ",ranges: " + collap_node.getData("ranges") +"\n");
+            return collap_node; 
 
     }
 
@@ -406,6 +458,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
     Map<Symbol, Expression> ArraySubscriptMap = new HashMap<Symbol,Expression>();
     Set<Symbol> LoopLVVs = null;
     Set<Symbol> Initial_syms = null;
+    Map<Symbol,Expression> DefSymbolExprs = new HashMap<>();
 
     String LoopName = LoopTools.getLoopName(input_for_loop);
    
@@ -464,9 +517,15 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
     
         // Merge incoming states from predecessors.
 
+        // if(node.getData("ir") != null)
+        // System.out.println(" node: " + node.getData("ir")+"\n");
+        // else
+        // System.out.println(" node: " + node.getData("tag")+"\n");
+
         RangeDomain curr_ranges = null;
         for (DFANode pred : node.getPreds()) {
             RangeDomain pred_range_out = node.getPredData(pred);
+            //System.out.println("pred: " + pred.getData("ir") +" ,range: " + pred_range_out +"\n");
             // Skip BOT-state predecessors that has not been visited.
            
             if (pred_range_out == null) {
@@ -482,28 +541,47 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
             }
 
         }
-
+        //System.out.println("curr ranges: " + curr_ranges +"\n");
+       
         if(node.getData("ir") != null && 
-                        node.getData("ir").toString().equals(input_for_loop.getCondition().toString() + ";") ){
+                        node.getData("ir").toString().contains(input_for_loop.getCondition().toString()) ){
 
-            LoopLVVs = node.getData("loop-variants");               
-        
-                for(Symbol LVV : LoopLVVs){
+            LoopLVVs = node.getData("loop-variants"); 
+            Set<Expression> DefExprs = DataFlowTools.getDefMap(input_for_loop).keySet();
+    
+               // System.out.println("LVVs: " + LoopLVVs +"\n");
+               for(Expression expr: DefExprs){
                     //if an LVV is present in the range dictionary of the loop header node, initialize it to lambda     
-                    VariableDeclarator vd = (VariableDeclarator)LVV;
-                    IDExpression LVVexpr = vd.getID();       
-                    curr_ranges.setRange(LVV, LVVexpr);
-                
+
+                    Symbol LVV = SymbolTools.getSymbolOf(expr);
+                    if( expr instanceof ArrayAccess){
+                        curr_ranges.setRange(LVV, expr);
+                        DefSymbolExprs.put(LVV, expr);
+                    }
+                    
+                    else{
+
+                    // if(curr_ranges.getRange(LVV) == null){
+                        VariableDeclarator vd = (VariableDeclarator)LVV;
+                        IDExpression LVVexpr = vd.getID();       
+                        curr_ranges.setRange(LVV, LVVexpr);
+                    }
+                        
+                    //}
                 }
+                //System.out.println("init curr ranges: " + curr_ranges +"\n");
 
             Initial_syms = curr_ranges.getSymbols();
         }
-        
+
+
         // Add initial values from declarations
         RangeAnalysis.enterScope(node, curr_ranges);
         
         RangeDomain prev_ranges = node.getData("ranges");
 
+        //System.out.println("Before ranges: " + node.getData("ranges") +"\n");
+        //System.out.println("Before: " + node.getData("ranges") +"\n");
         // Detected changes trigger propagation
         if (prev_ranges == null || !prev_ranges.equals(curr_ranges)) {
         
@@ -522,11 +600,11 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                     curr_ranges.setRange(sym, exp);
 
                 }
-                
+               
                 node.putData("ranges", curr_ranges);
 
             }
-
+        
             Expression LHS = ArrayWriteAccess(node, Loop_CFG);
                 //Adding the array alongwith its subscript to the appropriate map
                 if(LHS !=null ){  
@@ -536,12 +614,17 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
 
             // Apply state changes due to the execution of the node.
 
+            RangeAnalysis.updateRanges(node);        
+            
+           
+            // for (DFANode succ : node.getSuccs()) {
+          
+            //     System.out.println(succ.getData("ir") + ", ranges: " + succ.getPredData(node) +"\n");
 
-            RangeAnalysis.updateRanges(node);
+            // }
 
-            RangeAnalysis.exitScope(node);
-  
-    
+            //RangeAnalysis.exitScope(node);
+
             for (DFANode succ : node.getSuccs()) {
                         
                 // Do not add successors for infeasible paths
@@ -564,10 +647,11 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
               
                 RangeDomain Phase1Exprs = node.getData("ranges");
                 Set<Symbol> Final_symbols = Phase1Exprs.getSymbols();
+               
                 Killed_symbols = symmetricDifference(Initial_syms, Final_symbols);
 
-               // System.out.println("Subscripted-subscript analysis for Loop: " + LoopName + "\n" );  
-                SubSubPhasetwo(node.getData("ranges") , LoopLVVs , input_for_loop , 
+                //System.out.println("Subscripted-subscript analysis for Loop: " + LoopName + "\n" );  
+                SubSubPhasetwo(node.getData("ranges") , LoopLVVs , input_for_loop , DefSymbolExprs,
                                       Prior_Ranges , node.getData("array-subscripts"));                
                 
                 Annotation loop_ant = input_for_loop.getAnnotation(PragmaAnnotation.class, "name");
@@ -584,15 +668,15 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
 
             }
 
-       
-        // if(node.getData("ir") != null)
-        // System.out.println(" node: " + node.getData("ir") +" , range: " + node.getData("ranges") +"\n");
-        // else
-        // System.out.println(" node: " + node.getData("tag") +" , range: " + node.getData("ranges") +"\n");
+                // if(node.getData("ir") != null)
+                // System.out.println(" node: " + node.getData("ir")+ ", ranges: " + node.getData("ranges") +"\n");
+                // else
+                // System.out.println(" node: " + node.getData("tag")+ ", ranges: " + node.getData("ranges") +"\n");
+          
    
         }
 
-        
+        // System.out.println("*************\n");
    
     }
     
@@ -614,7 +698,8 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
     
 
     private static void SubSubPhasetwo(RangeDomain LoopRangeExpressions , Set<Symbol> LoopVariantVars, ForLoop input_for_loop,
-                                            RangeDomain RangeValsBeforeLoop, Map<Symbol,Expression>ArraySubscripts)
+                                         Map<Symbol,Expression> DefSymbolExprs,RangeDomain RangeValsBeforeLoop, 
+                                         Map<Symbol,Expression>ArraySubscripts)
     {
 
         Expression aggregate_lb = null;
@@ -622,6 +707,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
         Expression re = null;
         List<Symbol> SSR_variables = new ArrayList<Symbol>();
         Expression LoopIdx = LoopTools.getIndexVariable(input_for_loop);
+        //System.out.println("input loop: " + input_for_loop +"\n");
         RangeExpression LoopIdxRange = getLoopIndexRange(input_for_loop, RangeValsBeforeLoop);
 
         Expression LoopIterationCount = Symbolic.add(Symbolic.subtract(LoopIdxRange.getUB() , LoopIdxRange.getLB()), new IntegerLiteral(1));
@@ -638,8 +724,8 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
             RangeValsBeforeLoop = null;
 
         }
-        
 
+    
         // System.out.println("Phase 2 Analysis:\n");
 
         //Collect info about the loop index symbol - aggregate range and property
@@ -661,13 +747,15 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                        
                         Expression LVV_Value_expr = LoopRangeExpressions.getRange(sym);
 
+                        //System.out.println("LVV: " + sym + " ,value: " + LVV_Value_expr +"\n");
                         if(LVV_Value_expr.equals(new StringLiteral("bot")))
                           continue;
 
                         //Identifying the recurrence class of the LVV
-                      
-                        String recurrence_class = identify_recurrence_class(sym, LVV_Value_expr , LoopIdx, 
-                                                                                ArraySubscripts, SSR_variables,RangeValsBeforeLoop);
+                    
+
+                        String recurrence_class = identify_recurrence_class(sym, LVV_Value_expr , LoopIdx, DefSymbolExprs.get(sym),
+                                                                            SSR_variables,RangeValsBeforeLoop);
 
                         switch(recurrence_class){
                             case "Class 1":
@@ -796,17 +884,27 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
          * TODO : Support for array subscripts with loop invariant subscript expressions
          */
     
-    private static String identify_recurrence_class(Symbol LVV, Expression ValueExpr, Expression LoopIndex,
-                                                     Map<Symbol,Expression>ArraySubscriptExprs ,List<Symbol>List_SSR_Vars, RangeDomain RangesBeforeLoop)
+    private static String identify_recurrence_class(Symbol LVV, Expression ValueExpr, Expression LoopIndex, Expression ArrayDefExpr,
+                                                    List<Symbol>List_SSR_Vars, RangeDomain RangesBeforeLoop)
     {
 
-        
+        //System.out.println("LVV: " + LVV + " ,value: " + ValueExpr + " ,arr def expr: " + ArrayDefExpr +"\n");
        //Check if the LVV is a scalar or an array. 
        //Scalars can have only Class 1 recurrence
-        if(LVV.getArraySpecifiers().isEmpty()){
 
-            VariableDeclarator vd = (VariableDeclarator)LVV;
-            IDExpression idexpr = vd.getID();
+       
+        if(LVV.getArraySpecifiers().isEmpty()||
+           ( !LVV.getArraySpecifiers().isEmpty() && 
+            IRTools.containsClass(ValueExpr, ArrayAccess.class) &&
+             !IRTools.containsExpression(ValueExpr, LoopIndex))){
+
+            Expression idexpr = null;
+            if(LVV.getArraySpecifiers().isEmpty()){
+                VariableDeclarator vd = (VariableDeclarator)LVV;
+                idexpr = (Expression)vd.getID();
+            }
+            else
+                idexpr = ArrayDefExpr;
 
             if(ValueExpr instanceof RangeExpression){
                 RangeExpression re = (RangeExpression)ValueExpr;
@@ -814,7 +912,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                 Expression inc_expr_ub = Symbolic.subtract(re.getUB() , idexpr);
                 increment_expression = new RangeExpression(inc_expr_lb, inc_expr_ub);
                 //Check if the increment expression is Positive or Non-negative
-            
+        
                 if(is_PNN(increment_expression))
                         return "Class 1";
                 
@@ -826,7 +924,13 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
         }
         else{
 
-            Expression SubscriptExp = ArraySubscriptExprs.get(LVV);
+        
+            List<Expression> Array_indices = ((ArrayAccess)ArrayDefExpr).getIndices();
+
+            if(Array_indices.size() > 1)
+                return "Unknown Class";
+             
+            Expression SubscriptExp = Array_indices.remove(0);
         
             Expression SSR_var = Find_SSR_Var(ValueExpr,  List_SSR_Vars);
             
@@ -847,7 +951,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                 ArrayAccess LHS_sub_one = new ArrayAccess(array_idexpr, Symbolic.subtract(SubscriptExp, ONE));
 
                 if( ValueExpr.equals(LHS_sub_one) || ValueExpr.getChildren().contains(LHS_sub_one)
-                    && is_simple_subscript(ArraySubscriptExprs.get(LVV) , LoopIndex)){
+                    && is_simple_subscript(SubscriptExp , LoopIndex)){
         
                         Expression remainder = Symbolic.subtract(ValueExpr, LHS_sub_one);
 
@@ -1049,6 +1153,22 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
             }
         }
         return result;
+    }
+
+    private static boolean IdentifySubSubLoop(LinkedList<Loop> LoopNest){
+
+        for(Loop l : LoopNest){
+            ForLoop targetLoop = (ForLoop)l; 
+            Expression loop_ub = LoopTools.getUpperBoundExpression(targetLoop);
+            
+           if(IRTools.containsClass(loop_ub, ArrayAccess.class)){
+
+                 return true;
+
+              }
+            
+        }
+        return false;
     }
 
 

@@ -236,6 +236,7 @@ public class ProfitableOMP extends CodeGenPass {
     * Starts the code generation for profitable loop parallelization.
     */
     public void start() {
+      
         DFIterator<Statement> iter =
                 new DFIterator<Statement>(program, Statement.class);
         iter.pruneOn(VariableDeclaration.class);
@@ -465,13 +466,13 @@ public class ProfitableOMP extends CodeGenPass {
         "    struct timeval since;",
         "} cetusrt_event;",
         "",
-        "inline void cetusrt_tic(cetusrt_event *evt) {",
+        "static inline void cetusrt_tic(cetusrt_event *evt) {",
         "    if (evt->profile) {",
         "        gettimeofday(&evt->since, 0);",
         "    }",
         "}",
         "",
-        "inline void cetusrt_toc(cetusrt_event *evt) {",
+        "static inline void cetusrt_toc(cetusrt_event *evt) {",
         "    evt->count++;",
         "    if (evt->profile) {",
         "        struct timeval now;",

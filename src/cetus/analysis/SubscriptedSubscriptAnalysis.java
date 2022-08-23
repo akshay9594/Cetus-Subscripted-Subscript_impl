@@ -174,6 +174,7 @@ private static void wrapper(CFGraph SubroutineGraph){
                         for(int i=0; i < Loops_in_Nest.size(); i++){
 
                             ForLoop innerloop = (ForLoop)Loops_in_Nest.get(i);
+                            int loopnestdepth = LoopTools.calculateInnerLoopNest(innerloop).size();
                         
                             if(innerloop.equals(outermost_for_loop)){
                                 LoopControlFlowGraph = OuterLoopCFG;
@@ -184,7 +185,7 @@ private static void wrapper(CFGraph SubroutineGraph){
                             }
 
                             SubSubAnalysis(innerloop, LoopControlFlowGraph ,
-                            RangeValuesBeforeCurrentLoop.get(LoopTools.getLoopName(outermost_for_loop)));
+                            RangeValuesBeforeCurrentLoop.get(LoopTools.getLoopName(outermost_for_loop)),loopnestdepth);
 
                             if(innerloop.equals(outermost_for_loop)){
                                 node = CollapseLoopinCFG(SubroutineGraph, outermost_for_loop, node);
@@ -198,7 +199,7 @@ private static void wrapper(CFGraph SubroutineGraph){
                     }
                     else{
                              SubSubAnalysis(outermost_for_loop, OuterLoopCFG ,
-                                     RangeValuesBeforeCurrentLoop.get(LoopTools.getLoopName(outermost_for_loop)));
+                                     RangeValuesBeforeCurrentLoop.get(LoopTools.getLoopName(outermost_for_loop)),1);
                              node = CollapseLoopinCFG(SubroutineGraph, outermost_for_loop, node);
                     }
 
@@ -450,7 +451,7 @@ private static void wrapper(CFGraph SubroutineGraph){
  */
 
 
-private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, RangeDomain Prior_Ranges){
+private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, RangeDomain Prior_Ranges,int loopnestdepth){
 
 
     Integer visits = 0;
@@ -461,7 +462,10 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
     Map<Symbol,Expression> DefSymbolExprs = new HashMap<>();
 
     String LoopName = LoopTools.getLoopName(input_for_loop);
-   
+
+    int NumInnerLoops = loopnestdepth-1;
+    boolean isPerfectNest = LoopTools.isPerfectNest(input_for_loop);
+  
     TreeMap<Integer, DFANode> work_list = new TreeMap<Integer, DFANode>();
     
         Loop_CFG.topologicalSort(Loop_CFG.getNodeWith("stmt", "ENTRY"));
@@ -518,14 +522,15 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
         // Merge incoming states from predecessors.
 
         // if(node.getData("ir") != null)
-        // System.out.println(" node: " + node.getData("ir")+"\n");
+        // System.out.println("node: " + node.getData("ir") +"\n");
         // else
-        // System.out.println(" node: " + node.getData("tag")+"\n");
+        // System.out.println("node: " + node.getData("tag") +"\n");
+
 
         RangeDomain curr_ranges = null;
         for (DFANode pred : node.getPreds()) {
             RangeDomain pred_range_out = node.getPredData(pred);
-            //System.out.println("pred: " + pred.getData("ir") +" ,range: " + pred_range_out +"\n");
+        
             // Skip BOT-state predecessors that has not been visited.
            
             if (pred_range_out == null) {
@@ -535,13 +540,14 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                 curr_ranges = new RangeDomain(pred_range_out);
                 
             } else {        
-
+            
                 curr_ranges.unionRanges(pred_range_out);
     
             }
 
+
         }
-        //System.out.println("curr ranges: " + curr_ranges +"\n");
+        //System.out.println("curr ranges: " + node.getData("ranges") +"\n");
        
         if(node.getData("ir") != null && 
                         node.getData("ir").toString().contains(input_for_loop.getCondition().toString()) ){
@@ -613,20 +619,21 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                 }
 
             // Apply state changes due to the execution of the node.
-
-            RangeAnalysis.updateRanges(node);        
+            //If the loop is imprefectly nested and has more than 1 inner loops,
+            //range domains have to be currrectly updated.
+            if(NumInnerLoops > 1 && node.getData("tag") !=null &&
+               !isPerfectNest &&
+                node.getData("tag").getClass().equals(PragmaAnnotation.class)){
+                RangeAnalysis.UpdateCollapNode(node);
+            }
+             else
+                RangeAnalysis.updateRanges(node);        
             
            
-            // for (DFANode succ : node.getSuccs()) {
-          
-            //     System.out.println(succ.getData("ir") + ", ranges: " + succ.getPredData(node) +"\n");
-
-            // }
-
             //RangeAnalysis.exitScope(node);
 
             for (DFANode succ : node.getSuccs()) {
-                        
+                
                 // Do not add successors for infeasible paths
                 if (succ.getPredData(node) != null) {
                     RangeDomain SuccRange =  succ.getPredData(node);
@@ -736,12 +743,14 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
         // System.out.println("LVV: " + LoopIndexSymbol + "(loop index) \nAggregate range: " + LoopRangeExpressions.getRange(LoopIndexSymbol) + 
         //                                                 "\nproperty: " + variable_property.get(LoopIndexSymbol) +"\n");
         
+        Set<Symbol> Symbols_to_analyze = new HashSet<>(LoopRangeExpressions.getSymbols());
+        Symbols_to_analyze.retainAll(LoopVariantVars);
 
-               for(Symbol sym : LoopRangeExpressions.getSymbols()){
+
+               for(Symbol sym : Symbols_to_analyze){
+            
                    if(sym.equals(LoopIndexSymbol))
                         continue;
-
-                    if(LoopVariantVars.contains(sym)){
     
                         //Check if the symbol is the loop index variable
                        
@@ -804,9 +813,8 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                                 //Evaluate the PNN term
                                String property = eval_PNN(Class3_PNN_term);
                                variable_property.put(sym, property);
-                               Expression infinite = new InfExpression(1);
                                //Conservative estimation of the aggregate value expressions
-                               LoopRangeExpressions.setRange(sym, new RangeExpression(new IntegerLiteral(0), infinite));
+                               LoopRangeExpressions.setRange(sym, LoopIdxRange.getUB());
                             break;
                             case "Unknown Class":
                             //If none of the classes are recognized and the value expression is not constant, the aggregated value is unknown
@@ -832,7 +840,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
 
                             RangeExpression agg_subscript = null;
                             if(is_simple_subscript(array_subscript,LoopIdx)){
-                                agg_subscript =  (RangeExpression)LoopRangeExpressions.substituteForwardRange(array_subscript);
+                                agg_subscript =  LoopIdxRange;
                                 Object o = sym.getArraySpecifiers().get(0);
                                 //Check if the entire length of the array is modified.
                                 //If yes, then proceed with aggregation of the subscript.
@@ -857,8 +865,6 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                         //     System.out.println("LVV: " + sym  +"\nclass: " + recurrence_class + 
                         //                             "\nAggregate value range: " + LoopRangeExpressions.getRange(sym) + "\nproperty: " + variable_property.get(sym) +"\n");
 
-                        
-                    }
 
                }
         
@@ -957,6 +963,11 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
 
                         Expression remainder_range = RangesBeforeLoop.getRange(SymbolTools.getSymbolOf(remainder));
 
+                        if(remainder_range == null){
+                            IRTools.replaceAll(remainder, LHS_sub_one, new IntegerLiteral(0));
+                            remainder_range = Symbolic.simplify(remainder);
+                        }
+                        
                         if(is_PNN(remainder_range)){
                             Class3_PNN_term = remainder_range;
                             return "Class 3";
@@ -1055,18 +1066,18 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
             RangeExpression range = (RangeExpression)expr;
             Expression lb = range.getLB();
             if(((IntegerLiteral)lb).getValue() > 0)
-                return "Strict_Monotonicity";
+                return "STRICT_MONOTONIC";
             else if(((IntegerLiteral)lb).getValue() >= 0)
-                return "Monotonicity";
+                return "MONOTONIC";
             else
                 return null;
             
         }
         else{
             if(((IntegerLiteral)expr).getValue() > 0)
-                return "Strict_Monotonicity";
+                return "STRICT_MONOTONIC";
             else if(((IntegerLiteral)expr).getValue() >= 0)
-                return "Monotonicity";
+                return "MONOTONIC";
             else
                 return null;
 

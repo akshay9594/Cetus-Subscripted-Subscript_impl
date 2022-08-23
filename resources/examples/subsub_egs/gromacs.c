@@ -31,22 +31,22 @@ int main(){
             }
     }
 
-    // for(b=0; b<N; b++){
-    //     tmp0 = r[b][0];
-    //     tmp1 = r[b][1];
-    //     tmp2 = r[b][2];
-    //     i = bla1[b];
-    //     j = bla2[b];
-    //     for(n=blnr[b]; n<blnr[b+1]; n++){
-    //         k = Z[n];
-    //         blm[n]= blcc[n]*(tmp0*r[k][0]+tmp1*r[k][1]+tmp2*r[k][2]);
-    //     } 
-    //     mvb=q[b]*(tmp0*(xp[i][0]-xp[j][0])+
-    //             tmp1*(xp[i][1]-xp[j][1])+
-    //             tmp2*(xp[i][2]-xp[j][2])-bllen[b]);
-    //     rhs1[b]=mvb;
-    //     sol[b]=mvb;
-    // }
+    for(b=0; b<N; b++){
+        tmp0 = r[b][0];
+        tmp1 = r[b][1];
+        tmp2 = r[b][2];
+        i = bla1[b];
+        j = bla2[b];
+        for(n=blnr[b]; n<blnr[b+1]; n++){
+            k = Z[n];
+            blm[n]= blcc[n]*(tmp0*r[k][0]+tmp1*r[k][1]+tmp2*r[k][2]);
+        } 
+        mvb=q[b]*(tmp0*(xp[i][0]-xp[j][0])+
+                tmp1*(xp[i][1]-xp[j][1])+
+                tmp2*(xp[i][2]-xp[j][2])-bllen[b]);
+        rhs1[b]=mvb;
+        sol[b]=mvb;
+    }
 
     return 0;
 

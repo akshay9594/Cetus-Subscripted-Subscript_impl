@@ -1,5 +1,6 @@
 package cetus.analysis;
 
+import cetus.application.DataFlowAnalysis;
 import cetus.exec.Driver;
 import cetus.hir.*;
 
@@ -916,6 +917,8 @@ public class RangeAnalysis extends AnalysisPass
         if (o instanceof ExpressionStatement) {
             o = ((ExpressionStatement)o).getExpression();
         }
+
+
         // Side-effect node
         if (o instanceof Traversable) {
             Traversable t = (Traversable)o;
@@ -932,6 +935,7 @@ public class RangeAnalysis extends AnalysisPass
                 return;
             }
         }
+
         // Assignments
         if (o instanceof AssignmentExpression) {
             updateAssignment(node, (AssignmentExpression)o);
@@ -941,10 +945,103 @@ public class RangeAnalysis extends AnalysisPass
         } else if (o instanceof SwitchStatement) {
             // Switch statements
             updateSwitch(node, (SwitchStatement) o);
-        } else {
+        } 
+        else {
             // Side-effect-free node
             updateSafeNode(node);
         }
+    }
+
+    /*Handles the case when there are two back to back collapsed inner loops in 
+      an outer loop (Subscripted subcript analysis). Phase 1 of the outer loop 
+      will then need to analyze the range domains of the two collapsed nodes.
+     * 
+     */
+    public static void UpdateCollapNode(DFANode node){
+        
+
+        //Get the subscript array symbol for which range expression simplification
+        //needs to be performed
+        RangeDomain nodeRD = node.getData("ranges");
+        Set<Symbol> nodeSymbols = nodeRD.getSymbols();
+
+        Map<Symbol,String> LVVs = SubscriptedSubscriptAnalysis.getVariableProperties();
+
+        List<Symbol> SubArrays = new ArrayList<>();
+        for(Symbol LVV : LVVs.keySet()){
+            if(LVVs.get(LVV).equals("MONOTONIC")){
+                SubArrays.add(LVV);
+            }
+        }
+        if(SubArrays.size() > 1)
+            return;
+        
+        Symbol Subscript_Array = SubArrays.remove(0);
+        RangeDomain predRD=null;
+        //Substitute the range value of the subscript array from the
+        //predecssor node. The predecessor node can be an "ir" node or
+        //another collapsed node 
+        for(DFANode pred : node.getPreds()){
+            if(pred.getData("ir") != null){
+              predRD = node.getPredData(pred);
+
+            }
+            else if(pred.getData("tag").getClass().equals(PragmaAnnotation.class)){
+                predRD = node.getPredData(pred);
+            }
+        }
+
+        if(predRD == null)
+            return;
+        
+        Expression NodeSubscriptExpr = null;
+        Expression PredSymRangeUB = null;
+        Expression PredSymRangeLB = null;
+
+        //For the subscript array substitute the range from the predecessor
+        //range domain. Subsitution is performed in the form of Replacement.
+        //Refer to the "gromacs" example in the resources.
+        for(Symbol sym : nodeSymbols){
+
+            if(sym.getArraySpecifiers() != null && sym.getArraySpecifiers().size() == 1){
+             
+                Expression Predsym_range = predRD.getRange(sym);
+        
+                Set<Expression> NodeExprs = DataFlowTools.getUseMap(nodeRD.getRange(sym)).keySet();
+            
+                for(Expression expr : NodeExprs){
+                    if(SymbolTools.getSymbolOf(expr).equals(Subscript_Array)){
+                        NodeSubscriptExpr = expr;
+                    }
+                }
+                if(Predsym_range instanceof RangeExpression){
+                    PredSymRangeUB = ((RangeExpression)Predsym_range).getUB();
+                    PredSymRangeLB = ((RangeExpression)Predsym_range).getLB();
+                }
+                //If the predecessor node is an "ir" node, replace the current value of
+                // the subscript array with the predecessor value
+                if(NodeSubscriptExpr != null && PredSymRangeLB == null &&PredSymRangeUB == null){
+                    IRTools.replaceAll(nodeRD.getRange(sym), NodeSubscriptExpr, Predsym_range);
+                    //System.out.println("node range: " + nodeRD.getRange(sym) +"\n");
+                }
+                //If the predecessor node is a collapsed node, the perform substitution for the lower
+                //bound and upper bound separately.
+                else if(NodeSubscriptExpr != null && 
+                        nodeRD.getRange(sym) instanceof RangeExpression){
+                    IRTools.replaceAll(((RangeExpression)nodeRD.getRange(sym)).getUB(),NodeSubscriptExpr , PredSymRangeUB);
+                    IRTools.replaceAll(((RangeExpression)nodeRD.getRange(sym)).getLB(),NodeSubscriptExpr , PredSymRangeLB);
+                }
+            }
+        }
+
+        //Update the outgoing range domain of the current node with the subsituted range expressions
+        for (DFANode succ : node.getSuccs()) {
+            succ.putPredData(node, node.getData("ranges"));
+            //System.out.println("update: "+succ.getData("ir") + ", ranges: " + succ.getPredData(node));
+        }
+        
+
+        return;
     }
 
     // Node containing function calls.

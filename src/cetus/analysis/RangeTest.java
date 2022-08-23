@@ -721,7 +721,7 @@ public class RangeTest implements DDTest {
                             Loop loop, 
                            Set<Loop> Innerloops){
 
-      
+       
         Loop innerloop = Innerloops.iterator().next();
 
         ForLoop Outerloop = (ForLoop)loop;
@@ -763,7 +763,7 @@ public class RangeTest implements DDTest {
             }
         }
         
-
+      
 
         if(g_nextiter != null){
 
@@ -784,7 +784,6 @@ public class RangeTest implements DDTest {
 
                 RangeExpression Subscript_range = 
                                     (RangeExpression)AggSubs_Map.get(SymbolTools.getSymbolOf(index_array));
-
 
                 if( property.equals("MONOTONIC") || property.equals("STRICT_MONOTONIC") &&
                     Subscript_range.equals(Outerloop_range)){

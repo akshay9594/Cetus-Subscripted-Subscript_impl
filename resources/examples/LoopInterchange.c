@@ -13,11 +13,7 @@ Different loops to test the Loop Interchange pass in Cetus.
 int main(){
 
  
-
     int i ,j ,k , n = 10000, r=1000 , jmi , ld1 , ld2 , ldi ,ld,m ;
-    
-    // n = 10000;
-    // r = 1000;
 
 
     for(i = 0 ; i < 10000 ;i++){

@@ -11,8 +11,6 @@ MIN and MAX aren't intrinsic functions in C/C++.
 
 #define  MAX(X,Y)  (((X) > (Y)) ? (X) : (Y))
 
-
-
   int x = 1;
 
   float y = 0.0;

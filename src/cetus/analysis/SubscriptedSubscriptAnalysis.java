@@ -23,6 +23,8 @@ public class SubscriptedSubscriptAnalysis extends AnalysisPass{
 
     private static Map<Symbol,Expression> Loop_agg_subscripts = new HashMap<>();
 
+    private static Expression control_expr = null;
+
     public SubscriptedSubscriptAnalysis(Program program){
         super(program);
     }
@@ -453,7 +455,6 @@ private static void wrapper(CFGraph SubroutineGraph){
 
 private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, RangeDomain Prior_Ranges,int loopnestdepth){
 
-
     Integer visits = 0;
 
     Map<Symbol, Expression> ArraySubscriptMap = new HashMap<Symbol,Expression>();
@@ -465,6 +466,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
 
     int NumInnerLoops = loopnestdepth-1;
     boolean isPerfectNest = LoopTools.isPerfectNest(input_for_loop);
+
   
     TreeMap<Integer, DFANode> work_list = new TreeMap<Integer, DFANode>();
     
@@ -519,19 +521,33 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
 
         }
     
+
+        if(node.getData("ir") != null){
+        System.out.println("ir node: " + node.getData("ir") +"\n");
+        }
+        else
+        System.out.println("tag node: " + node.getData("tag") +"\n");
+
         // Merge incoming states from predecessors.
 
-        // if(node.getData("ir") != null)
-        // System.out.println("node: " + node.getData("ir") +"\n");
-        // else
-        // System.out.println("node: " + node.getData("tag") +"\n");
-
-
         RangeDomain curr_ranges = null;
+        Expression if_condition = null;
+        CompoundStatement enclosing_if_stmt = null;
+       
         for (DFANode pred : node.getPreds()) {
             RangeDomain pred_range_out = node.getPredData(pred);
-        
             // Skip BOT-state predecessors that has not been visited.
+
+            // if( node.getPreds().size()>1 && pred.getData("stmt-ref") != null){
+             
+            //    if(pred.getData("stmt-ref") instanceof IfStatement)
+            //         if_condition = ((IfStatement)pred.getData("stmt-ref")).getControlExpression();
+            //     else if(pred.getData("symbol-exit") != null){
+            //         ArrayList List_compund_stmts = pred.getData("symbol-exit");
+            //         enclosing_if_stmt = (CompoundStatement)List_compund_stmts.get(0) ;
+            //     }
+
+            // }
            
             if (pred_range_out == null) {
                 continue;
@@ -540,14 +556,16 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                 curr_ranges = new RangeDomain(pred_range_out);
                 
             } else {        
-            
+                //System.out.println("curr ranges: " + curr_ranges + ",pred range:" + pred_range_out +"\n");
                 curr_ranges.unionRanges(pred_range_out);
     
             }
 
 
         }
-        //System.out.println("curr ranges: " + node.getData("ranges") +"\n");
+
+        // if(if_condition != null && enclosing_if_stmt != null)
+        //     Detect_Intermittant_Seq(enclosing_if_stmt,if_condition,curr_ranges,input_for_loop);
        
         if(node.getData("ir") != null && 
                         node.getData("ir").toString().contains(input_for_loop.getCondition().toString()) ){
@@ -586,8 +604,6 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
         
         RangeDomain prev_ranges = node.getData("ranges");
 
-        //System.out.println("Before ranges: " + node.getData("ranges") +"\n");
-        //System.out.println("Before: " + node.getData("ranges") +"\n");
         // Detected changes trigger propagation
         if (prev_ranges == null || !prev_ranges.equals(curr_ranges)) {
         
@@ -714,7 +730,9 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
         Expression re = null;
         List<Symbol> SSR_variables = new ArrayList<Symbol>();
         Expression LoopIdx = LoopTools.getIndexVariable(input_for_loop);
-        //System.out.println("input loop: " + input_for_loop +"\n");
+
+        //System.out.println("Phase 1 exprs: " + LoopRangeExpressions +"\n");
+
         RangeExpression LoopIdxRange = getLoopIndexRange(input_for_loop, RangeValsBeforeLoop);
 
         Expression LoopIterationCount = Symbolic.add(Symbolic.subtract(LoopIdxRange.getUB() , LoopIdxRange.getLB()), new IntegerLiteral(1));
@@ -1180,6 +1198,102 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
             
         }
         return false;
+    }
+
+    /*
+     * Procedure to determine an intermittant sequence
+     */
+
+    private static void Detect_Intermittant_Seq(CompoundStatement enclosing_if_stmt, Expression if_condition, 
+                                                RangeDomain curr_ranges, ForLoop inputForLoop){
+
+        List<ArrayAccess> Arrays_in_Conditional = IRTools.getExpressionsOfType(enclosing_if_stmt, ArrayAccess.class);
+        Expression value_of_temp = null;
+        Expression array_value_expr = null;
+        Expression sub_increment_expr = null;
+        Expression LoopIdx = LoopTools.getIndexVariable(inputForLoop);
+
+        if_condition = curr_ranges.substituteForwardRange(if_condition);
+
+        // if(IRTools.containsExpression(if_condition, LoopIdx))
+            
+
+        DFIterator expr_iter = new DFIterator<AssignmentExpression>(enclosing_if_stmt, AssignmentExpression.class);
+        for(int i=0; i<Arrays_in_Conditional.size(); i++){
+            ArrayAccess array = Arrays_in_Conditional.get(i);
+            Expression subscript = array.getIndex(0);
+            
+            while(expr_iter.hasNext()){
+                AssignmentExpression def_expr = (AssignmentExpression)expr_iter.next();
+                if(def_expr.getLHS().equals(subscript))
+                    value_of_temp = def_expr.getRHS();
+                else if(def_expr.getLHS().equals(array))
+                    array_value_expr = def_expr.getRHS();
+                else if(value_of_temp != null && def_expr.getLHS().equals(value_of_temp) &&
+                        Symbolic.subtract(def_expr.getRHS(), value_of_temp).equals(new IntegerLiteral(1))){        
+                    sub_increment_expr = def_expr.getRHS();
+                }
+            }
+
+            if(array_value_expr != null && sub_increment_expr != null){
+                curr_ranges.setRange(SymbolTools.getSymbolOf(array), array_value_expr);
+            }
+            
+        }
+        
+        System.out.println("if cond: " + if_condition +"\n");
+
+        // if(node.getData("ir") != null){
+    
+        //     //Object LHS = node.getData("assign-to");
+        //     Object node_ir = node.getData("ir");
+
+        //     if(node_ir instanceof ExpressionStatement){
+        //         ExpressionStatement expr_st = (ExpressionStatement)node_ir;
+        //         Expression expr_in_st = expr_st.getExpression();
+        //         if(expr_in_st instanceof AssignmentExpression){
+        //             AssignmentExpression node_assignment = (AssignmentExpression)expr_in_st;
+        //             Expression LHS = node_assignment.getLHS();
+        //             Expression RHS = node_assignment.getRHS();
+
+        //             if(LHS instanceof ArrayAccess)
+        //             {
+        //                 ArrayAccess assigned_array = (ArrayAccess)LHS;
+        //                 Expression Simplified_SubExpr = 
+        //                     curr_ranges.getRange(SymbolTools.getSymbolOf(assigned_array.getIndices().get(0)));
+                    
+                        
+        //                 //assigned_array.setIndex(0, Simplified_SubExpr);
+                      
+        //                 ExpressionStatement node_ref_stmt = node.getData("stmt-ref");
+        //                 List<IfStatement> loop_ifstmts = IRTools.getStatementsOfType(input_for_loop, IfStatement.class);
+
+        //                 if(loop_ifstmts.size() > 1)
+        //                     return;
+                        
+        //                 IfStatement enclosing_ifstmt = loop_ifstmts.remove(0);
+        
+        //                 if(IRTools.containsExpression(enclosing_ifstmt, node_ref_stmt.getExpression())){
+        //                     Expression if_condition = curr_ranges.substituteForwardRange(enclosing_ifstmt.getControlExpression());
+                           
+        //                     System.out.println("Check: " + IRTools.findExpressions(if_condition, Simplified_SubExpr) +"\n");
+
+        //                 }
+
+        //                 else
+        //                 return;
+                        
+
+        //             }
+
+
+        //         }
+        //     }
+
+        // }
+
+        return ;
+
     }
 
 

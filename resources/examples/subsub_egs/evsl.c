@@ -2,9 +2,9 @@
 Subscripted subscript example from EVSL (Eigen Value Solver)
 */
 
-#include <stdio.h>
-#include <math.h>
-#include <stdlib.h>
+// #include <stdio.h>
+// #include <math.h>
+// #include <stdlib.h>
 
 #define N 30000
 

@@ -553,7 +553,7 @@ public class RangeAnalysis extends AnalysisPass
             if (ret != null) {
                 if (debug >= 2) {
                     System.err.println(
-                            toPrettyRanges(symtab, ret, new Integer(0)));
+                            toPrettyRanges(symtab, ret, 0));
                 }
                 return ret;
             }
@@ -587,7 +587,7 @@ public class RangeAnalysis extends AnalysisPass
 
       
         if (debug >= 2) {
-            System.err.println(toPrettyRanges(symtab, ret, new Integer(0)));
+            System.err.println(toPrettyRanges(symtab, ret, 0));
         }
         return ret;
     }
@@ -638,7 +638,7 @@ public class RangeAnalysis extends AnalysisPass
             }
         }
         if (debug >= 2) {
-            System.err.println(toPrettyRanges(proc, ret, new Integer(0)));
+            System.err.println(toPrettyRanges(proc, ret, 0));
         }
         return ret;
     }
@@ -654,9 +654,9 @@ public class RangeAnalysis extends AnalysisPass
         CFGraph cfg = new CFGraph(stmt);
         cfg.normalize();
         cfg.topologicalSort(cfg.getNodeWith("stmt", "ENTRY"));
-        DFANode last = cfg.getNodeWith("top-order", new Integer(cfg.size()-1));
+        DFANode last = cfg.getNodeWith("top-order", cfg.size()-1);
         DFANode exit = new DFANode("stmt", "EXIT");
-        exit.putData("top-order", new Integer(cfg.size()));
+        exit.putData("top-order", cfg.size());
         cfg.addEdge(last, exit);
         // Exit node is necessary because Range Analysis computes only in-range.
         // Maybe CFGraph needs flow exit always but it breaks the range
@@ -695,7 +695,7 @@ public class RangeAnalysis extends AnalysisPass
         int my_order = (Integer)node.getData("top-order");
         for (DFANode pred : node.getPreds()) {
             if (my_order < (Integer)pred.getData("top-order")) {
-                node.putData("has-backedge", new Boolean(true));
+                node.putData("has-backedge", true);
                 break;
             }
         }
@@ -728,10 +728,10 @@ public class RangeAnalysis extends AnalysisPass
             // Record number of iterations for each node.
             Integer visits = node.getData("num-visits");     
             if (visits == null) {
-                node.putData("num-visits", new Integer(1));
+                node.putData("num-visits", 1);
                 setBackedge(node);
             } else {
-                node.putData("num-visits", new Integer(visits + 1));
+                node.putData("num-visits", visits + 1);
             }
             PrintTools.printlnStatus(3, tag, "Visited Node#", node_num);
             PrintTools.printlnStatus(3, tag, "  IR =",CFGraph.getIR(node));

@@ -705,8 +705,8 @@ public class RangeDomain implements Cloneable, Domain {
                     continue;
                 long value = ((IntegerLiteral)o).getValue();
                 if (min == null) {
-                    min = new Long(value);
-                    max = new Long(value);
+                    min = value;
+                    max = value;
                 } else {
                     if (value < min)
                         min = value;
@@ -1766,6 +1766,7 @@ public class RangeDomain implements Cloneable, Domain {
                 setRange(var, result);
             }
         }
+       
         PrintTools.printlnStatus(2, tag, before, "(v)", other, "=", this);
     }
 
@@ -1983,6 +1984,7 @@ public class RangeDomain implements Cloneable, Domain {
         //                                = max(b,d)           (ACCURACY=2)
         //
         // Check if either e1/e2 is omega range, empty range, or e1==e2.
+       
         if (isOmega(e1) || isOmega(e2))
             return null;
         else if (isEmpty(e1))

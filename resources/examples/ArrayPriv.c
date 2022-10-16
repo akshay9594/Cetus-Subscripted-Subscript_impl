@@ -1,4 +1,6 @@
-/* Array Privatization Example
+/* 
+
+  Array Privatization Example
 
   The variable t is an array used temporarily during a single iteration of the
   outer loop. No value of t is used in an iteration other than the one that

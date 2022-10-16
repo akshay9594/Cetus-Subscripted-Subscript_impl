@@ -455,7 +455,7 @@ public class IPPointsToAnalysis extends IPAnalysis {
                     //PointsToAnalysis.annotatePointsTo(
                     //        node.getProcedure(), result);
                     PrintTools.printlnStatus(3, pass_name, toPrettyDomain(
-                            node.getProcedure(), result, new Integer(0)));
+                            node.getProcedure(), result, 0));
                 }
             }
         }
@@ -490,7 +490,7 @@ public class IPPointsToAnalysis extends IPAnalysis {
         putPTDMap(result, node);
         if (verbosity >= 5) {
             PrintTools.printlnStatus(5, pass_name, 
-                toPrettyDomain(node.getProcedure(), result, new Integer(0)));
+                toPrettyDomain(node.getProcedure(), result, 0));
         }
     }
 

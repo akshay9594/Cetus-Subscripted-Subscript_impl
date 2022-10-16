@@ -1,9 +1,11 @@
-/*  Very Simple Parallelizable Loop Example
+
+/*  
+  Sparse Matrix Scaling example from SuiteSparse 5.4.0
 */
 
-#include <stdio.h>
-#include <math.h>
-#include <stdlib.h>
+// #include <stdio.h>
+// #include <math.h>
+// #include <stdlib.h>
 
 #define N 30000
 

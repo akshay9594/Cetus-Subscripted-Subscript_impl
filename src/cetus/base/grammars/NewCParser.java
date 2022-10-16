@@ -68,7 +68,7 @@ public NewCLexer getLexer()
 public List getPragma(int a)
 {
   return
-      preprocessorInfoChannel.extractLinesPrecedingTokenNumber(new Integer(a));
+      preprocessorInfoChannel.extractLinesPrecedingTokenNumber(a);
 }
 
 /*
@@ -733,7 +733,6 @@ inputState.guessing--;
 	public final Procedure  functionDef() throws RecognitionException, TokenStreamException {
 		Procedure curFunc;
 		
-		
 		CompoundStatement stmt=null;
 		Declaration decl=null;
 		Declarator bdecl=null;
@@ -746,7 +745,6 @@ inputState.guessing--;
 
 		loop_decl = null;
 		decl_for_global = null;
-		loop_idex_list = new ArrayList<IDExpression>();
 		loop_decl_list = new ArrayList<Declaration>();
 		
 		
@@ -941,23 +939,15 @@ inputState.guessing--;
 			
 		}
 
-		if(!loop_decl_list.isEmpty() && !declared_vars.isEmpty()){
+		if(!loop_decl_list.isEmpty()){
 			for(int i=0 ;i < loop_decl_list.size() ; i++){
-				Declaration d = loop_decl_list.get(i);
-				
-				List<IDExpression> decl_IDS = d.getDeclaredIDs();
-
-				for(int j=0 ; j < decl_IDS.size(); j++){
-
-					if(!declared_vars.contains(decl_IDS.get(j)))
-						stmt.addDeclaration(d);				
-	
-				}
-
+					stmt.addDeclaration(loop_decl_list.get(i));				
 				
 			}
 		}
 	
+		loop_decl_list.removeAll(loop_decl_list);
+		loop_idex_list.removeAll(loop_idex_list);
 		return curFunc;
 	}
 	
@@ -3358,20 +3348,12 @@ inputState.guessing--;
 	
 		  dspec = (Specifier)dspec_for_list.get(0);
 
-		  decl_for_global = new VariableDeclarator(idex_for);
-
-		  loop_decl =  new VariableDeclaration(dspec, decl_for_global);
-
-         if(loop_idex_list.contains(idex_for)){
-
-			loop_decl = null;
-		}
-
-	    else{
-
+		  if(!loop_idex_list.contains(idex_for)){
+			decl_for_global = new VariableDeclarator(idex_for);
+			loop_decl =  new VariableDeclaration(dspec, decl_for_global);
+			loop_decl_list.add(loop_decl);
 			loop_idex_list.add(idex_for);
-			
-		}
+		  }
 
 		return init_for_expr;
 	}
@@ -5357,11 +5339,11 @@ inputState.guessing--;
 
 				match(RPAREN);
 				
-				if(loop_decl != null && !loop_decl_list.contains(loop_decl)){
+				// if(loop_decl != null && !loop_decl_list.contains(loop_decl)){
 
-					loop_decl_list.add(loop_decl);
+				// 	loop_decl_list.add(loop_decl);
 
-				}
+				// }
 				stmt1=statement();
 		
 				

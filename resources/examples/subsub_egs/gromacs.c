@@ -1,9 +1,10 @@
-/*  Very Simple Parallelizable Loop Example
+/*  
+    Subscripted Subscript example from Gromacs SPEC CPU 2006
 */
 
-#include <stdio.h>
-#include <math.h>
-#include <stdlib.h>
+// #include <stdio.h>
+// #include <math.h>
+// #include <stdlib.h>
 
 #define N 30000
 #define M 10000
@@ -31,6 +32,7 @@ int main(){
             }
     }
 
+   //loop to parallelize
     for(b=0; b<N; b++){
         tmp0 = r[b][0];
         tmp1 = r[b][1];

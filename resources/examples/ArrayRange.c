@@ -1,10 +1,9 @@
-/*  Very Simple Parallelizable Loop Example
+/*  
+ Very Simple Parallelizable Loop Example
 */
 
-#include <stdio.h>
-#include <math.h>
-
 #define n 10000
+int initialize(int a[], int m);
 
 int main(){
     
@@ -14,6 +13,7 @@ int main(){
 
   int c[30000];
   
+  initialize(b, n);
   for (int i=0 ; i<n; i++) {
 
    for(int j=0; j<n; j++){
@@ -23,5 +23,15 @@ int main(){
 
   }
 
+
+}
+
+int initialize(int a[], int m){
+
+  for(int i=0; i<m; i++){
+     a[i] = i;
+  }
+
+  return a;
 
 }

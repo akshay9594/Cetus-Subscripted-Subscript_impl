@@ -3,12 +3,18 @@ package cetus.hir;
 import java.io.PrintWriter;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
 * Represents the access of an array or pointer variable: array[x][y]...
 */
+
+
 public class ArrayAccess extends Expression {
+
+    private static Map<Symbol,Expression> Array_IfCond_Tag = new HashMap<>();
 
     private static Method class_print_method;
 
@@ -189,6 +195,14 @@ public class ArrayAccess extends Expression {
     */
     static public void setClassPrintMethod(Method m) {
         class_print_method = m;
+    }
+
+    public static void SetIfConditionTag(Symbol input_array, Expression ifCondition){
+        Array_IfCond_Tag.put(input_array, ifCondition);
+    }
+
+    public static Expression get_IfConditionTag(Symbol keyArray){
+        return Array_IfCond_Tag.get(keyArray);
     }
 
 }

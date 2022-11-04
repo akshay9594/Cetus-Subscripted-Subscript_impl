@@ -7,10 +7,9 @@
 float a[SIZE+2][SIZE+2];
 float b[SIZE+2][SIZE+2]; 
 
-int main(int argc, char *argv[])
+int main()
 {
   int i, j, k;
-  double my_time;
 
   /*printf("JACOBI OMP VERSION: MATRIX = %d x %d, ITERATION = %d\n", SIZE, SIZE, ITER);*/
 

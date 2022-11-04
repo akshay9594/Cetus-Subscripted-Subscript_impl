@@ -973,7 +973,7 @@ public class RangeAnalysis extends AnalysisPass
                 SubArrays.add(LVV);
             }
         }
-        if(SubArrays.size() > 1)
+        if(SubArrays.size() > 1 || SubArrays.isEmpty())
             return;
         
         Symbol Subscript_Array = SubArrays.remove(0);
@@ -1317,6 +1317,7 @@ public class RangeAnalysis extends AnalysisPass
             Symbol var = ((Identifier)node.getData("assign-to")).getSymbol();
             // Preprocess the range to avoid replacement in array subscripts.
             ranges_out.killArraysWith(var);
+
             Expression replace_with =
                 (direction.equals("invertible")) ?
                     (Expression)node.getData("invertible") :
@@ -1331,6 +1332,7 @@ public class RangeAnalysis extends AnalysisPass
                ranges_out.expandSymbol(var);
     
             }
+
             // Eliminate the assigned symbol in the range.
             ranges_out.replaceSymbol(var, replace_with);
             // Postprocess the range by discarding cyclic ranges.
@@ -1341,6 +1343,7 @@ public class RangeAnalysis extends AnalysisPass
             } else {         
                 ranges_out.setRange(var, from);
             }
+
             // Add additional ranges from the equality condition -- disable if
             // there is any problem.
             /*

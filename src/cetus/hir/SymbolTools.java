@@ -773,6 +773,9 @@ public final class SymbolTools {
         if (st instanceof Loop) {
             st = IRTools.getAncestorOfType(st, SymbolTable.class);
         }
+
+        Procedure ParentProc = IRTools.getParentProcedure(st);
+
         String header = (name == null) ? "_temp_" : name + "_";
         NameID id = null;
         for (int trailer = 0; id == null; ++trailer) {
@@ -781,6 +784,7 @@ public final class SymbolTools {
                 id = newid;
             }
         }
+        
         // Separate declarator/declaration specifiers.
         List declaration_specs = new ArrayList(specs.size());
         List declarator_specs = new ArrayList(specs.size());
@@ -806,6 +810,12 @@ public final class SymbolTools {
         }
         Declaration decls = new VariableDeclaration(declaration_specs, decl);
         st.addDeclaration(decls);
+
+        // if(ParentProc != null){
+        //     ParentProc.addDeclaration(decls);
+        //     System.out.println("proc:\n" + ParentProc +"\n");
+        // }
+
         return new Identifier(decl);
     }
 

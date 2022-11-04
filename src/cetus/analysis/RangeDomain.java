@@ -957,8 +957,9 @@ public class RangeDomain implements Cloneable, Domain {
     // Remove any ranges with a self cycle, e.g., a=[0,a]
     protected void removeRecurrence() {
         for (Symbol var : new LinkedHashSet<Symbol>(ranges.keySet())) {
-            if (IRTools.containsSymbol(getRange(var), var))
+            if (IRTools.containsSymbol(getRange(var), var)){
                 removeRange(var);
+            }
         }
     }
 
@@ -1757,9 +1758,18 @@ public class RangeDomain implements Cloneable, Domain {
             before = this.clone();
         }
         //String dmsg = tag + this + " (v) " + other;
+       
+        Expression result = null;
         for (Symbol var : new LinkedHashSet<Symbol>(ranges.keySet())) {
-            Expression result = unionRanges(getRange(var), this,
+           
+            if(!getRange(var).toString().equals("\"lambda\""))
+                result = unionRanges(getRange(var), this,
                                             other.getRange(var), other);
+            else { 
+                result = other.getRange(var);
+                SimplifyTaggedIfCond(var,other);
+            }
+            
             if (isOmega(result)) {
                 removeRange(var);
             } else {
@@ -1770,6 +1780,13 @@ public class RangeDomain implements Cloneable, Domain {
         PrintTools.printlnStatus(2, tag, before, "(v)", other, "=", this);
     }
 
+
+    private static void SimplifyTaggedIfCond(Symbol var, RangeDomain predRD){
+        Expression if_tag = ArrayAccess.get_IfConditionTag(var);
+        if_tag = predRD.substituteForward(if_tag);
+        ArrayAccess.SetIfConditionTag(var, if_tag);
+
+    }
     /**
     * Widens all value ranges of "other" range domain with this range domain.
     * @param other value ranges being widened

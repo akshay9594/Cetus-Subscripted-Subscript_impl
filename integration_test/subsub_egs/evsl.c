@@ -22,14 +22,14 @@ int y[N], ind[N], xdos[N], gamma2[N];
       numPlaced = 0;
       
       for (j = 0; j < npts; j++) {
-        if (fabs(xdos[j] - t) < width) ind[numPlaced++] = j;
+        if ((xdos[j] - t) < width) ind[numPlaced++] = j;
       }
 
       //Loop to parallelize
 
-      for (j = 0; j < numPlaced; j++)
-        y[ind[j]] += gamma2[i] *
-                     exp(-((xdos[ind[j]] - t) * (xdos[ind[j]] - t)) / sigma2);
+      // for (j = 0; j < numPlaced; j++)
+      //   y[ind[j]] += gamma2[i] *
+      //                exp(-((xdos[ind[j]] - t) * (xdos[ind[j]] - t)) / sigma2);
  
  }
  

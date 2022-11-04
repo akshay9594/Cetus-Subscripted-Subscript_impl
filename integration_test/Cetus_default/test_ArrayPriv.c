@@ -10,7 +10,7 @@
 
 */
 
-#include <math.h>
+//#include <math.h>
 
 int main(){
 

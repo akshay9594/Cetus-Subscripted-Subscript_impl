@@ -10,16 +10,13 @@ Subscripted subscript example from EVSL (Eigen Value Solver)
 
 int main(){
 
-int i,j, msteps, width, sigma2, numPlaced, npts;
+int i,j, msteps, width, sigma2, numPlaced, npts = N;
 
 double t, ritzVal[N];
 
 int y[N], ind[N], xdos[N], gamma2[N];
 
- for (i = 0; i < msteps; i++) {
-      
-      t = ritzVal[i];
-      numPlaced = 0;
+numPlaced = 0;
       
       for (j = 0; j < npts; j++) {
         if ((xdos[j] - t) < width) ind[numPlaced++] = j;
@@ -27,11 +24,10 @@ int y[N], ind[N], xdos[N], gamma2[N];
 
       //Loop to parallelize
 
-      // for (j = 0; j < numPlaced; j++)
-      //   y[ind[j]] += gamma2[i] *
-      //                exp(-((xdos[ind[j]] - t) * (xdos[ind[j]] - t)) / sigma2);
- 
- }
+      for (j = 0; j < numPlaced; j++)
+        y[ind[j]] += gamma2[i] *
+                     exp(-((xdos[ind[j]] - t) * (xdos[ind[j]] - t)) / sigma2);
+
  
   
 	

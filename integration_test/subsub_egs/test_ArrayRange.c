@@ -2,12 +2,11 @@
  Very Simple Parallelizable Loop Example
 */
 
-#define n 10000
 int initialize(int a[], int m);
 
 int main(){
     
-  int a[30000];
+  int a[30000],n;
   
   int b[30000];
 

@@ -575,15 +575,22 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
 
                     Symbol LVV = SymbolTools.getSymbolOf(expr);
                     
+                    //Preprocessing for the index expression of an array.
+                    //If the array index expression is an unary expression,
+                    //it might be an intermittent sequence.
                     if( expr instanceof ArrayAccess){
                         
                         ArrayAccess access_expr = (ArrayAccess)expr;
-                        if(access_expr.getIndex(0) instanceof UnaryExpression &&
-                           !IRTools.containsClass(access_expr.getIndex(0), ArrayAccess.class) ){
+                        Expression array_index = access_expr.getIndex(0);
+                        if(array_index instanceof UnaryExpression &&
+                           !IRTools.containsClass(array_index, ArrayAccess.class) ){
                             expr = new StringLiteral("lambda");
-                            TagSymbolWithIfCond(LVV,input_for_loop, access_expr);  
+                            TagSymbolWithIfCond(LVV,input_for_loop, access_expr); 
+                            array_index = ((UnaryExpression)array_index).getExpression();
+                           
                             
                         }
+                        ArraySubscriptMap.put( LVV , array_index); 
                         curr_ranges.setRange(LVV, expr);
                         DefSymbolExprs.put(LVV, access_expr);
 
@@ -633,12 +640,6 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
 
             }
         
-            Expression LHS = ArrayWriteAccess(node, Loop_CFG);
-                //Adding the array alongwith its subscript to the appropriate map
-                if(LHS !=null ){  
-                    ArrayAccess LHS_array = (ArrayAccess)LHS;
-                    ArraySubscriptMap.put( SymbolTools.getSymbolOf(LHS_array.getArrayName()), LHS_array.getIndices().get(0));
-                }
 
             // Apply state changes due to the execution of the node.
             //If the loop is imprefectly nested and has more than 1 inner loops,
@@ -840,7 +841,9 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                                 }
                             break;
                             case "Class 2i":
-                                System.out.println("Class 2i recognized for: " + sym + ", expr: " + LVV_Value_expr +"\n");
+                                re = LoopRangeExpressions.substituteForwardRange(LVV_Value_expr);
+                                LoopRangeExpressions.setRange(sym, re);
+                                variable_property.put(sym, "STRICT_MONOTONIC");
                                 break;
                             case "Class 3":
                                 //Evaluate the PNN term
@@ -870,7 +873,6 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                         if(!sym.getArraySpecifiers().isEmpty()){
 
                             Expression array_subscript = ArraySubscripts.get(sym);
-
                             RangeExpression agg_subscript = null;
                             if(is_simple_subscript(array_subscript,LoopIdx)){
                                 agg_subscript =  LoopIdxRange;
@@ -882,13 +884,21 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                                    if((Symbolic.add(agg_subscript.getUB(),agg_subscript.getStride())).equals(arr_len))
                                         Loop_agg_subscripts.put(sym, agg_subscript);        
                                 }
-                                else     
-                                    Loop_agg_subscripts.put(sym, new StringLiteral("bot"));                          
+                                else {    
+                                    Loop_agg_subscripts.put(sym, new StringLiteral("bot"));
+                                }                          
                                 
                             }
-                            else if(!Loop_agg_subscripts.keySet().contains(sym))
-                                        Loop_agg_subscripts.put(sym, new StringLiteral("bot"));
-                                
+                            //Aggregation of subscript expression of an intermittent sequence
+                            else if(ArrayAccess.get_IfConditionTag(sym) != null){
+                                agg_subscript = new RangeExpression(new IntegerLiteral(0), array_subscript.clone());
+                                Loop_agg_subscripts.put(sym, agg_subscript);
+
+                            }
+                            else if(!Loop_agg_subscripts.keySet().contains(sym)){
+                                    Loop_agg_subscripts.put(sym, new StringLiteral("bot"));
+                            }
+                            
      
                             // System.out.println("LVV: " + sym + "\nclass: " + recurrence_class  + "\nAggregate subscript: " + Loop_agg_subscripts.get(sym) +
                             //                         "\nAggregate value range: " + LoopRangeExpressions.getRange(sym) + "\nproperty: " + variable_property.get(sym) +"\n");
@@ -989,11 +999,14 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                 Symbol ArraySymbol = SymbolTools.getSymbolOf((ArrayAccess)ArrayDefExpr);
                 Expression if_tag = ArrayAccess.get_IfConditionTag(ArraySymbol);
 
+                //System.out.println("expr class: " + ValueExpr.getClass() +"\n");
                 if(if_tag!=null && IRTools.containsExpression(if_tag, LoopIndex) &&
                     ValueExpr.equals(LoopIndex) &&
                     (subexpr.getOperator().equals(UnaryOperator.POST_INCREMENT)|| 
-                      subexpr.getOperator().equals(UnaryOperator.PRE_INCREMENT)))
+                      subexpr.getOperator().equals(UnaryOperator.PRE_INCREMENT))){
+                    
                     return "Class 2i";
+                }
                 else
                     return "Uknown Class";
             }
@@ -1187,21 +1200,6 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
 
     }
     
-
-    private static Expression ArrayWriteAccess(DFANode CurrentNode, CFGraph cfg){
-
-        Object o = cfg.getIR(CurrentNode);
-        if(o instanceof ExpressionStatement){
-            o = ((ExpressionStatement)o).getExpression();
-            if(o instanceof AssignmentExpression){
-                AssignmentExpression assignment = (AssignmentExpression)o;
-                if(assignment.getLHS() instanceof ArrayAccess)
-                    return assignment.getLHS();
-            }
-        }
-
-        return null;
-    }
 
     private static Set<Symbol> symmetricDifference(Set<Symbol> a, Set<Symbol> b) {
         Set<Symbol> result = new HashSet<Symbol>(a);

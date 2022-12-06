@@ -10,7 +10,7 @@
 int main(){
 
   int i,j ,jj, irownnz,m,adiag,vecstride_y, idxstride_y, vecstride_x, idxstride_x;
-  int num_vectors, num_rownnz, num_rows;
+  int num_vectors, num_rownnz, num_rows = N;
   int A_i[N], Arownnz[N], y_data[N], A_data[N], A_j[N], x_data[N];
 
 
@@ -22,17 +22,17 @@ int main(){
   }
     
   //Loop to parallelize
-  //  for (i = 0; i < num_rownnz; i++)
-  //  {
-  //        m = Arownnz[i];
+   for (i = 0; i < num_rownnz; i++)
+   {
+         m = Arownnz[i];
 
-  //          for (jj = A_i[m]; jj < A_i[m+1]; jj++)
-  //          {
-  //                  j = A_j[jj];   
-  //               y_data[m] += A_data[jj] * x_data[j];
-  //          } 
+           for (jj = A_i[m]; jj < A_i[m+1]; jj++)
+           {
+                   j = A_j[jj];   
+                y_data[m] += A_data[jj] * x_data[j];
+           } 
          
-  //   }
+    }
 
   // //Loop to parallelize
 

@@ -80,6 +80,8 @@ public class RangeTest implements DDTest {
     //Parallel subscripted subscript loops (Loops which pass TEST3)
     public static List<Loop> ParallelSubSubLoops = new ArrayList<Loop>();
 
+    public static Map<ForLoop,Expression> ParallelSubSubLoops_Conditions = new HashMap<>();
+
     // Common/local loop nest
     private LinkedList<Loop>
             common_loops;           // enclose both f and g
@@ -164,7 +166,6 @@ public class RangeTest implements DDTest {
         
                 if (IRTools.containsSymbol(f, index_sym) ||
                     IRTools.containsSymbol(g, index_sym)) {
-                    
                         relevant_loops.add(loop);
                 }
 
@@ -378,6 +379,7 @@ public class RangeTest implements DDTest {
 
             while (perm_iter.hasNext() && !placed) {
                 Loop perm_loop = (Loop)perm_iter.next();
+
                 if (test1(loop, inner_permuted)) {
                     parallel_loops.put(loop, TEST1_PASS);
                     placed = true;
@@ -415,10 +417,20 @@ public class RangeTest implements DDTest {
 
             if (!placed) {
                 // Assert inner_permuted.size() == 0
+              
                 if (test1(loop, inner_permuted)) {
                     parallel_loops.put(loop, TEST1_PASS);
                 } else if (test2(loop, inner_permuted)) {
                     parallel_loops.put(loop, TEST2_PASS);
+                }//Following part handles testing for subscripted subscript loops
+                //with non-relevant inner loops where f and g exclusively subscript arrays
+                else if(inner_permuted.isEmpty() &&
+                        f instanceof ArrayAccess &&
+                        g instanceof ArrayAccess &&
+                        test3(loop, inner_permuted)){
+                    parallel_loops.put(loop, TEST3_PASS);       //Dependencing testing for subscripted subscripts
+                    placed = true;
+                    ParallelSubSubLoops.add(loop);
                 }
                
                 permuted.add(loop);
@@ -670,14 +682,15 @@ public class RangeTest implements DDTest {
     private boolean test3(Loop loop, Set<Loop> inner_permloops){
 
         boolean ret = false;
-
+    
         ret = ( IRTools.containsClass(f, ArrayAccess.class) && 
                 IRTools.containsClass(g, ArrayAccess.class) &&
-                (inner_permloops.size() == 1) &&
+                (inner_permloops.size() <= 1) &&
                 f.equals(g) && 
                 rtest3(f, g, loop, inner_permloops)
              );
 
+        //System.out.println("ret: " + ret + ",f=" + f + ",g=" + g + ",innerloops=" + inner_permloops.size()+"\n");
         return ret;
     }
 
@@ -721,19 +734,13 @@ public class RangeTest implements DDTest {
                             Loop loop, 
                            Set<Loop> Innerloops){
 
-       
-        Loop innerloop = Innerloops.iterator().next();
-
         ForLoop Outerloop = (ForLoop)loop;
-        ForLoop Innerloop = (ForLoop)innerloop;
-
         Expression OuterLoopstride =  LoopTools.getIncrementExpression(Outerloop);
         RangeExpression Outerloop_range = getLoopRange(Outerloop);
-        RangeExpression Innerloop_range = getLoopRange(Innerloop);
 
         Map<Symbol, String> VarProps_Map = SubscriptedSubscriptAnalysis.getVariableProperties();
         Map<Symbol,Expression> AggSubs_Map =  SubscriptedSubscriptAnalysis.getAggregateSubscripts();
-
+       
         String Outerloop_ant = (Outerloop.getAnnotation(PragmaAnnotation.class, "name")).toString();
     
         //To determine the value of symbolic upper bounds of the subscripted susbcript loop
@@ -742,6 +749,40 @@ public class RangeTest implements DDTest {
         if(RDCurrentLoop == null){
             return false;
         }
+
+        //Dependence testing for loop nests with irrelevant inner loop.
+        //Normally observed for subscripted subscript loops involving intermittant sequences.
+        if(Innerloops.size() == 0){
+            Symbol SubArray = SymbolTools.getSymbolOf(e1);
+            if( VarProps_Map.get(SubArray) != null &&
+                VarProps_Map.get(SubArray).equals("STRICT_MONOTONIC"))
+            {
+                Expression AggSubUB = ((RangeExpression)AggSubs_Map.get(SubArray)).getUB();
+                Expression LoopUB = Outerloop_range.getUB();
+
+                if(Symbolic.subtract(AggSubUB, LoopUB).equals(new IntegerLiteral(1)))
+                    return true;
+
+                else if(!(AggSubUB instanceof IntegerLiteral) || 
+                    !(LoopUB instanceof IntegerLiteral)){
+                
+                    Expression condition = new BinaryExpression(
+                            LoopUB.clone() ,
+                            BinaryOperator.COMPARE_LE ,
+                            AggSubUB.clone());
+
+                    ParallelSubSubLoops_Conditions.put(Outerloop, condition);
+                    //Do Something
+                }
+                return true;
+            }
+            else
+                return false;
+        }
+        
+        Loop innerloop = Innerloops.iterator().next();
+        ForLoop Innerloop = (ForLoop)innerloop;       
+        RangeExpression Innerloop_range = getLoopRange(Innerloop);
 
         Outerloop_range = (RangeExpression)RDCurrentLoop.substituteForwardRange(Outerloop_range);
         //Actual testing begins
@@ -1059,5 +1100,9 @@ public class RangeTest implements DDTest {
 
     public static List getSubSubParallelLoops(){
         return ParallelSubSubLoops;
+    }
+
+    public static Expression getParallelSubSub_Condition(ForLoop keyloop){
+            return ParallelSubSubLoops_Conditions.get(keyloop);
     }
 }

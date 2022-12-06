@@ -1,5 +1,6 @@
 package cetus.codegen;
 
+import cetus.analysis.RangeTest;
 import cetus.exec.Driver;
 import cetus.hir.*;
 
@@ -121,6 +122,10 @@ public class ompGen extends CodeGenPass {
 
         omp_annot.put("for", "true");
         removeAutomaticPrivateVariables(loop, omp_annot);
+
+        if(RangeTest.getParallelSubSub_Condition(loop) != null){
+            omp_annot.put("if", RangeTest.getParallelSubSub_Condition(loop));
+        }
 
         loop.annotateBefore(omp_annot);
 

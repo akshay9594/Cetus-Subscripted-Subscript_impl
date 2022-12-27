@@ -1080,7 +1080,7 @@ public final class SymbolTools {
     // AccessExpression   : access symbol (list of symbols).
     // Pointer Dereference: the first symbol found in the expression tree.
     public static Symbol getSymbolOf(Expression e) {
-      
+    
         if (e instanceof Identifier) {
             return ((Identifier)e).getSymbol();
         } else if (e instanceof ArrayAccess) {

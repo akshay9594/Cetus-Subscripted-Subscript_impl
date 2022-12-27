@@ -417,7 +417,6 @@ public class RangeTest implements DDTest {
 
             if (!placed) {
                 // Assert inner_permuted.size() == 0
-              
                 if (test1(loop, inner_permuted)) {
                     parallel_loops.put(loop, TEST1_PASS);
                 } else if (test2(loop, inner_permuted)) {
@@ -706,6 +705,7 @@ public class RangeTest implements DDTest {
         return ret;
     }
 
+
     /**
      * Data dependence testing in the presence of subscripted subscript expressions of the form-
      * [index_array[j]:index_array[j+1]-1]. In this case, the subscripted subscript loop is of the
@@ -873,6 +873,10 @@ public class RangeTest implements DDTest {
         //Getting the Aggregate range values for LVVs w.r.t current loop from SubSub Analysis pass
         String loop_ant = (CurrentLoop.getAnnotation(PragmaAnnotation.class, "name")).toString();
         RangeDomain RDCurrentLoop = SubscriptedSubscriptAnalysis.getAggregateRanges().get(loop_ant);
+
+        if(RDCurrentLoop == null){
+            return false;
+        }
         
         //Determine the index array and it's value range from range analysis
         ArrayAccess index_array = IRTools.getDescendentsOfType(e1, ArrayAccess.class).get(0);
@@ -935,6 +939,7 @@ public class RangeTest implements DDTest {
         
         return false;
     }
+
 
     private static RangeExpression getLoopRange(ForLoop loop){
 

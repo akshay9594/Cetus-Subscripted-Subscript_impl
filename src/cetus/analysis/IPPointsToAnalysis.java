@@ -485,6 +485,7 @@ public class IPPointsToAnalysis extends IPAnalysis {
     */
     @SuppressWarnings("unchecked")
     public void analyzeProcedure(IPANode node) {
+
         Map<Statement, Domain> result =
                 PointsToAnalysis.getPointsToRelations(node);
         putPTDMap(result, node);
@@ -816,6 +817,7 @@ public class IPPointsToAnalysis extends IPAnalysis {
     public static Set<PointsToRel> getReturnRelations(CallSite callsite) {
         Set<PointsToRel> ret = null;
         IPANode callee = callsite.getCallee();
+       
         if (callee == null) {
             PointsToRel lib_rel = getStandardLibraryReturnRelation(callsite);
             if (lib_rel != null) {

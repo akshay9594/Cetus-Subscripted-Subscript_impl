@@ -1287,10 +1287,13 @@ public class RangeAnalysis extends AnalysisPass
                     SymbolTools.getSymbolOf((Expression)node_data));
             }
 
+            else if(ModifiedArray.getIndices().size() > 1 &&
+                    direction.equals("normal")){
+                    ranges_out.setRange(ModifiedArray, (Expression)RHS);
+            }
             //If node is an assignment statement with a 1D array being modified and
             //no dependence
             else if(direction.equals("normal") || direction.equals("recurrence")){       
-                       
                 //Handling certain types of array expressions
                 ranges_out.setRange(sym , (Expression)RHS);     
             

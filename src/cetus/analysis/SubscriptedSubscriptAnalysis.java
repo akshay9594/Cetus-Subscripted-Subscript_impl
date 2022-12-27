@@ -1,5 +1,6 @@
 
 package cetus.analysis;
+import cetus.application.DataFlowAnalysis;
 import cetus.hir.*;
 import cetus.transforms.LoopNormalization;
 import cetus.transforms.TransformPass;
@@ -153,15 +154,27 @@ private static void wrapper(CFGraph SubroutineGraph){
                 outermost_for_loop = (ForLoop)node.getData("stmt");
 
                 LinkedList<Loop>Loops_in_Nest =  new LinkedList();
+                //Initializing a LinkedList of Loop Control flowgraphs
+                //for loops in the loop nest.
+                LinkedList<CFGraph> Loop_CFG_List = new LinkedList();
+
                 Loops_in_Nest = LoopTools.calculateInnerLoopNest(outermost_for_loop);
-               
-                if(!LoopTools.isPerfectNest(outermost_for_loop)){
+                boolean isPerfectNest = LoopTools.isPerfectNest(outermost_for_loop);
+                boolean NoLoopsInBody = false;
+                //System.out.println("Depth: " + LoopTools.isCanonical(outermost_for_loop) +"\n");
+                if(!isPerfectNest){
                     Loops_in_Nest.remove(0);
-                    Collections.reverse(Loops_in_Nest);
+                    NoLoopsInBody = NoLoopsInBody(Loops_in_Nest);
+                    if(!NoLoopsInBody){
+                        Collections.reverse(Loops_in_Nest);
+                    }
+                    
                     Loops_in_Nest.add(0, outermost_for_loop);
                 }
                 
-                // Loops_in_Nest.add(outermost_for_loop);
+               for(int i =0; i < Loops_in_Nest.size() ; i++){
+                   Loop_CFG_List.add(new CFGraph((ForLoop)Loops_in_Nest.get(i)));
+               }
          
                 if(!IdentifySubSubLoop(Loops_in_Nest))
                 {
@@ -171,39 +184,86 @@ private static void wrapper(CFGraph SubroutineGraph){
                     //Store the range dictionary of the node immediately before the loop header
                     RangeValuesBeforeCurrentLoop.put(LoopTools.getLoopName(outermost_for_loop), new RangeDomain(curr_ranges));
                 
-                    CFGraph OuterLoopCFG = new CFGraph(outermost_for_loop);
+                    CFGraph OuterLoopCFG = Loop_CFG_List.get(0);
                     OuterLoopCFG.normalize();                               //Important step after creating a CFGraph
 
                     CFGraph LoopControlFlowGraph = null;
 
+                    // RangeDomain MultDimenArrayInit = 
+                    // DefMultiDim_ArraysList((ForLoop)Loops_in_Nest.getLast());
+            
                     if(Loops_in_Nest.size() > 1){
 
-                        for(int i=Loops_in_Nest.size()-1 ; i >= 0 ; i--){
+                        CFGraph NextLoopCFG = null;
 
+                        for(int i = Loops_in_Nest.size()-1; i >=0; i--){
+                 
                             ForLoop innerloop = (ForLoop)Loops_in_Nest.get(i);
-        
-                            // System.out.println("loop: " + innerloop +"\n");
-                            int loopnestdepth = LoopTools.calculateInnerLoopNest(innerloop).size();
+                            CFGraph CurrentLoopCFG = Loop_CFG_List.get(i);
+                            CurrentLoopCFG.normalize();
                         
-                            if(innerloop.equals(outermost_for_loop)){
-                                LoopControlFlowGraph = OuterLoopCFG;
+                            //The inner loop nodes are to be collapsed in the CFG of
+                            // the next outer loop in the loop nest
+                            if(!innerloop.equals(outermost_for_loop) &&
+                                NoLoopsInBody){
+                                NextLoopCFG = Loop_CFG_List.get(i-1);
+                                NextLoopCFG.normalize();
                             }
                             else{
-                                LoopControlFlowGraph = new CFGraph(innerloop);
-                                LoopControlFlowGraph.normalize();
+                            //For the example initialization loop nest in the "test_gromacs"
+                            //example, the inner loop nodes should be collapsed in the CFG of
+                            //the outermost loop
+                                NextLoopCFG = OuterLoopCFG;
                             }
-
-                            SubSubAnalysis(innerloop, LoopControlFlowGraph ,
+    
+                            int loopnestdepth = LoopTools.calculateInnerLoopNest(innerloop).size();
+    
+                            //Perform the Subscripted Subscript Analysis
+                            SubSubAnalysis(innerloop, CurrentLoopCFG ,
                             RangeValuesBeforeCurrentLoop.get(LoopTools.getLoopName(outermost_for_loop)),loopnestdepth);
-
+                           
+                            //Collapse the loop nodes in the appropriate CFGs
                             if(innerloop.equals(outermost_for_loop)){
-                                node = CollapseLoopinCFG(SubroutineGraph, outermost_for_loop, node);
+                                node = CollapseLoopinCFG(SubroutineGraph, innerloop, node);
                             }
-                            else
-                                CollapseLoopinCFG(OuterLoopCFG, innerloop, null);
+                            else{
+                                CollapseLoopinCFG(NextLoopCFG, innerloop, null);
+                            }
+                          }
+
+                        // for(int i=Loops_in_Nest.size()-1 ; i >= 0 ; i--){
+
+                        //     ForLoop innerloop = (ForLoop)Loops_in_Nest.get(i);
+    
+                        //     int loopnestdepth = LoopTools.calculateInnerLoopNest(innerloop).size();
+                        
+                        //     if(innerloop.equals(outermost_for_loop)){
+                        //         LoopControlFlowGraph = OuterLoopCFG;
+                        //     }
+                        //     else{
+                        //         LoopControlFlowGraph = new CFGraph(innerloop);
+                        //         LoopControlFlowGraph.normalize();
+                        //     }
+
+                        //     // if( MultDimenArrayInit.getMultiDimenRanges() != null && 
+                        //     //     !innerloop.equals(outermost_for_loop)){
+                        //     //     UpdateMultiDimenRanges(MultDimenArrayInit, innerloop ,OuterLoopCFG,
+                        //     //     RangeValuesBeforeCurrentLoop.get(LoopTools.getLoopName(outermost_for_loop)));
+                        //     //  }
+                        //     // else{
+                        //         SubSubAnalysis(innerloop, LoopControlFlowGraph ,
+                        //         RangeValuesBeforeCurrentLoop.get(LoopTools.getLoopName(outermost_for_loop)),loopnestdepth);
+                        //     //}
+
+                        //     if(innerloop.equals(outermost_for_loop)){
+                        //         node = CollapseLoopinCFG(SubroutineGraph, outermost_for_loop, node);
+                        //     }
+                        //     else{
+                        //         CollapseLoopinCFG(OuterLoopCFG, innerloop, null);
+                        //     }
 
 
-                        }
+                        // }
                     }
                     else if(Loops_in_Nest.size() == 1){
                              SubSubAnalysis(outermost_for_loop, OuterLoopCFG ,
@@ -211,29 +271,6 @@ private static void wrapper(CFGraph SubroutineGraph){
                              node = CollapseLoopinCFG(SubroutineGraph, outermost_for_loop, node);
                     }
 
-                    // CFGraph LoopControlFlowGraph = null;
-                    // for(int i = 0 ; i < Loops_in_Nest.size(); i++){
-
-                    //     ForLoop innerloop = (ForLoop)Loops_in_Nest.get(i);
-                    
-                    //     LoopControlFlowGraph = new CFGraph(innerloop);
-                    //     LoopControlFlowGraph.normalize();
-
-                    //     if(i > 0){
-                    //         CollapseLoopinCFG(LoopControlFlowGraph, (ForLoop)Loops_in_Nest.get(i-1), null);
-                    //         //System.out.println("collap node: " + Collapsed_innerloopNode.getData("tag") + " , range: " + Collapsed_innerloopNode.getData("ranges") +"\n");
-                    //     }
-
-                    //     //System.out.println("=======================================================================\n");
-                    //     //Phase 1 Called
-                    //     SubSubAnalysis(innerloop, LoopControlFlowGraph ,
-                    //                                 RangeValuesBeforeCurrentLoop.get(LoopTools.getLoopName(outermost_for_loop)));
-
-
-
-                    // }
-
-                    // node = CollapseLoopinCFG(SubroutineGraph, outermost_for_loop, node);
                 }
                 else{
                     
@@ -567,9 +604,8 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                         node.getData("ir").toString().contains(input_for_loop.getCondition().toString()) ){
 
             LoopLVVs = node.getData("loop-variants"); 
-            Set<Expression> DefExprs = DataFlowTools.getDefMap(input_for_loop).keySet();
-    
-               // System.out.println("LVVs: " + LoopLVVs +"\n");
+            Set<Expression> DefExprs = DataFlowTools.getDefMap(input_for_loop.getBody()).keySet();
+           
                for(Expression expr: DefExprs){
                     //if an LVV is present in the range dictionary of the loop header node, initialize it to lambda     
 
@@ -581,19 +617,32 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                     if( expr instanceof ArrayAccess){
                         
                         ArrayAccess access_expr = (ArrayAccess)expr;
-                        Expression array_index = access_expr.getIndex(0);
-                        if(array_index instanceof UnaryExpression &&
-                           !IRTools.containsClass(array_index, ArrayAccess.class) ){
-                            expr = new StringLiteral("lambda");
-                            TagSymbolWithIfCond(LVV,input_for_loop, access_expr); 
-                            array_index = ((UnaryExpression)array_index).getExpression();
-                           
-                            
-                        }
-                        ArraySubscriptMap.put( LVV , array_index); 
-                        curr_ranges.setRange(LVV, expr);
-                        DefSymbolExprs.put(LVV, access_expr);
 
+                        if(access_expr.getIndices().size() == 1){
+                            Expression array_index = access_expr.getIndex(0);
+                            if(array_index instanceof UnaryExpression &&
+                            !IRTools.containsClass(array_index, ArrayAccess.class) ){
+                                expr = new StringLiteral("lambda");
+                                TagSymbolWithIfCond(LVV,input_for_loop, access_expr); 
+                                array_index = ((UnaryExpression)array_index).getExpression();
+                            
+                                
+                            }
+                            ArraySubscriptMap.put( LVV , array_index); 
+                            curr_ranges.setRange(LVV, expr);
+                            DefSymbolExprs.put(LVV, access_expr);
+    
+                        }
+                        // else{
+                        //     List<Expression> indices = access_expr.getIndices();
+                        //     for(int i =0; i < indices.size(); i++){
+        
+                        //         if(indices.get(i) instanceof IntegerLiteral){
+                        //             integer_indices.add(indices.get(i));
+                        //         }
+                        //     }                            
+                            
+                        // }
                     }
                     
                     else{
@@ -606,6 +655,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                         
                     //}
                 }
+
                 //System.out.println("init curr ranges: " + curr_ranges +"\n");
 
             Initial_syms = curr_ranges.getSymbols();
@@ -702,10 +752,10 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
 
             }
 
-                // if(node.getData("ir") != null)
-                // System.out.println(" node: " + node.getData("ir")+ ", ranges: " + node.getData("ranges") +"\n");
-                // else
-                // System.out.println(" node: " + node.getData("tag")+ ", ranges: " + node.getData("ranges") +"\n");
+                if(node.getData("ir") != null)
+                System.out.println(" node: " + node.getData("ir")+ ", ranges: " + node.getData("ranges") +"\n");
+                else
+                System.out.println(" node: " + node.getData("tag")+ ", ranges: " + node.getData("ranges") +"\n");
           
    
         }
@@ -1256,6 +1306,106 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
 
     }
 
+    private static void UpdateMultiDimenRanges(RangeDomain curr_Ranges,ForLoop input_for_loop,
+                                            CFGraph LoopCFG, RangeDomain Prior_Ranges)
+    {
+        Symbol LoopIdx = LoopTools.getLoopIndexSymbol(input_for_loop);
+        RangeExpression LoopRange = getLoopIndexRange(input_for_loop, null);
+        Annotation LoopAnnotation = input_for_loop.getAnnotation(PragmaAnnotation.class, "name");
+        curr_Ranges.setRange(LoopIdx, LoopRange);
+        System.out.println("Loop: " + LoopIdx +"\n");
+
+      
+      //  if(LoopTools.isInnermostLoop(input_for_loop)){
+            for(int i=0; i < LoopCFG.size(); i++){
+                DFANode node = LoopCFG.getNode(i);
+                if(node.getData("stmt") != null &&
+                node.getData("stmt") instanceof ExpressionStatement){
+                    ExpressionStatement stmt = (ExpressionStatement)node.getData("stmt");
+                    Expression expr = stmt.getExpression();
+                    if(expr instanceof AssignmentExpression){
+                        Expression defined_expr = ((AssignmentExpression)expr).getLHS();
+                        Expression new_value = ((AssignmentExpression)expr).getRHS();
+
+                        if(defined_expr instanceof ArrayAccess){
+                            curr_Ranges.setRange((ArrayAccess)defined_expr, new_value);
+                        }
+                        else{
+                            curr_Ranges.setRange(SymbolTools.getSymbolOf(defined_expr), new_value);
+                            //System.out.println("expr: " + defined_expr + "," +new_value + "\n");
+                        }
+                    }
+                }
+            }
+      //  }
+
+      
+            Map<ArrayAccess,Expression> Multi_dim_init = curr_Ranges.getMultiDimenRanges();
+           
+            for(ArrayAccess access : Multi_dim_init.keySet()){
+                Expression value_expr = Multi_dim_init.get(access);
+                value_expr = curr_Ranges.substituteForwardRange(value_expr);
+                curr_Ranges.setRange(access, value_expr);
+            }
+
+
+        System.out.println("ranges: " + curr_Ranges.getMultiDimenRanges() +"\n");
+
+        // for(int i=0; i < LoopCFG.size(); i++){
+        //     DFANode node = LoopCFG.getNode(i);
+
+        //     if(node.getData("tag") != null)
+        //      System.out.println("tag: " + node.getData("tag") +"\n");
+        // }
+       
+
+    }
+
+
+    private static RangeDomain DefMultiDim_ArraysList(ForLoop input_for_loop)
+    {
+
+        RangeDomain curr_Ranges = new RangeDomain();
+
+        curr_Ranges.InitilizeMultiDimenRD();
+
+        Set<Expression> DefExprs = DataFlowTools.getDefMap(input_for_loop.getBody()).keySet();
+
+        Map<Symbol, Set<Integer>> DefSymbolsMap = DataFlowTools.getDefSymbolMap(input_for_loop.getBody());
+
+
+           if(DefSymbolsMap.size() == 1){
+                
+                Set<Symbol> DefSymbols = DefSymbolsMap.keySet();
+
+                Symbol def_symbol = DefSymbols.iterator().next();
+
+                if(!def_symbol.getArraySpecifiers().isEmpty()){
+                    
+                    ArraySpecifier spec =  (ArraySpecifier)def_symbol.getArraySpecifiers().get(0);
+
+                    if(spec.getNumDimensions() > 2){
+                        String array_name = def_symbol.getSymbolName();
+
+                        Iterator expr_iter = DefExprs.iterator();
+
+                        while(expr_iter.hasNext()){
+                            ArrayAccess array_expr = (ArrayAccess)expr_iter.next();
+                            IDExpression id = new NameID(array_expr.toString());
+                            
+                            if(SymbolTools.getSymbolOf(array_expr).getSymbolName().equals(array_name)){
+                                curr_Ranges.setRange(array_expr, array_expr);
+                            }
+                        }
+
+                    }
+                }
+                    
+            }                                                     
+
+            return curr_Ranges;
+    }
+
     private static boolean isCanonicalLoopNest(LinkedList<Loop>LoopNest){
 
         Iterator loop_iter = LoopNest.iterator();
@@ -1265,6 +1415,20 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                 return false;
         }
         return true;
+    }
+
+    private static boolean NoLoopsInBody(LinkedList<Loop> LoopsInNest){
+
+        int i;
+       
+        for(i=0; i < LoopsInNest.size(); i++){
+            ForLoop l = (ForLoop)LoopsInNest.get(i);
+            //System.out.println("inner loop body contains loop: " + l.getBody() +"\n" );
+            if(!IRTools.getStatementsOfType(l.getBody(), ForLoop.class).isEmpty()){
+                return true;
+            }
+        }
+        return false;
     }
 
 

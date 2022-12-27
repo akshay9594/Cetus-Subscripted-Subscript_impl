@@ -58,6 +58,8 @@ public class RangeDomain implements Cloneable, Domain {
     // Set of symbolic value ranges.
     private LinkedHashMap<Symbol, Expression> ranges;
 
+    private static LinkedHashMap<ArrayAccess, Expression> multi_dimen_arr_ranges;
+
     // Global comparison depth counter
     private int compare_depth;
 
@@ -75,6 +77,7 @@ public class RangeDomain implements Cloneable, Domain {
     */
     public RangeDomain() {
         ranges = new LinkedHashMap<Symbol, Expression>();
+        multi_dimen_arr_ranges = new LinkedHashMap<ArrayAccess,Expression>();
     }
 
     /**
@@ -120,6 +123,10 @@ public class RangeDomain implements Cloneable, Domain {
         return ranges.size();
     }
 
+    public void InitilizeMultiDimenRD(){
+        multi_dimen_arr_ranges = new LinkedHashMap<ArrayAccess,Expression>();
+    }
+
     /**
     * Updates the value range for the specified variable.
     * @param var    the variable whose value range is updated.
@@ -131,6 +138,16 @@ public class RangeDomain implements Cloneable, Domain {
             ranges.remove(var);
         } else {
             ranges.put(var, value);
+        }
+
+    }
+
+    public void setRange(ArrayAccess var, Expression value) {
+       
+        if (isOmega(value)) {
+            multi_dimen_arr_ranges.remove(var);
+        } else {
+            multi_dimen_arr_ranges.put(var, value);
         }
 
     }
@@ -2405,5 +2422,9 @@ public class RangeDomain implements Cloneable, Domain {
         ret.add(e1);
         ret.add(e2);
         return ret;
+    }
+
+    public static Map<ArrayAccess,Expression> getMultiDimenRanges(){
+        return multi_dimen_arr_ranges;
     }
 }

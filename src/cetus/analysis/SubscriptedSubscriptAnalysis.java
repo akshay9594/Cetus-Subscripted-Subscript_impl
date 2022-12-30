@@ -20,7 +20,7 @@ public class SubscriptedSubscriptAnalysis extends AnalysisPass{
 
     private static Map<String, RangeDomain> Loop_agg_ranges = new HashMap<>();
 
-    private static Map<Symbol, String> variable_property = new LinkedHashMap<>();
+    private static Map<Symbol, String> variable_property = new HashMap<>();
 
     private static Map<Symbol,Expression> Loop_agg_subscripts = new HashMap<>();
 
@@ -220,7 +220,8 @@ private static void wrapper(CFGraph SubroutineGraph){
     
                             //Perform the Subscripted Subscript Analysis
                             SubSubAnalysis(innerloop, CurrentLoopCFG ,
-                            RangeValuesBeforeCurrentLoop.get(LoopTools.getLoopName(outermost_for_loop)),loopnestdepth);
+                            RangeValuesBeforeCurrentLoop.get(LoopTools.getLoopName(outermost_for_loop)),
+                            loopnestdepth, NoLoopsInBody);
                            
                             //Collapse the loop nodes in the appropriate CFGs
                             if(innerloop.equals(outermost_for_loop)){
@@ -267,7 +268,9 @@ private static void wrapper(CFGraph SubroutineGraph){
                     }
                     else if(Loops_in_Nest.size() == 1){
                              SubSubAnalysis(outermost_for_loop, OuterLoopCFG ,
-                                     RangeValuesBeforeCurrentLoop.get(LoopTools.getLoopName(outermost_for_loop)),1);
+                                     RangeValuesBeforeCurrentLoop.get(LoopTools.getLoopName(outermost_for_loop)),
+                                     1,
+                                     NoLoopsInBody);
                              node = CollapseLoopinCFG(SubroutineGraph, outermost_for_loop, node);
                     }
 
@@ -471,11 +474,11 @@ private static void wrapper(CFGraph SubroutineGraph){
             }
         
             for(DFANode succ: innerLoopSuccs){
-                //System.out.println("succ: " + succ.getData("ir") + "\n");
                 input_CFG.addEdge(collap_node, succ);
                 collap_node.putData("true", succ);
                 //System.out.println("collap node: " + collap_node.getData("tag") +" , succ: " + succ.getData("ir") +"\n");
                 succ.putPredData(collap_node, collap_node.getData("ranges"));
+                //System.out.println("ranges: " + succ.getPredData(collap_node) +"\n");
             }
             
             if(OutermostLoopNode == null){
@@ -485,8 +488,9 @@ private static void wrapper(CFGraph SubroutineGraph){
                 }
             }
 
-    
             //System.out.println("Collap node: " + collap_node.getData("tag") + ",ranges: " + collap_node.getData("ranges") +"\n");
+            //Kill the Loop Index symbol of the collapsed loop
+            //Killed_symbols.add(LoopTools.getLoopIndexSymbol(loop_to_collapse));
             return collap_node; 
 
     }
@@ -499,7 +503,8 @@ private static void wrapper(CFGraph SubroutineGraph){
  */
 
 
-private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, RangeDomain Prior_Ranges,int loopnestdepth){
+private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, 
+                                RangeDomain Prior_Ranges,int loopnestdepth, boolean NoLoopsInBody){
 
     Integer visits = 0;
 
@@ -568,10 +573,9 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
     
 
         // if(node.getData("ir") != null)
-        // System.out.println(" node: " + node.getData("ir")+"\n");
-        // else
-        // System.out.println(" node: " + node.getData("tag")+"\n");
-  
+        //  System.out.println(" node: " + node.getData("ir"));
+        //  else
+        //  System.out.println(" node tag: " + node.getData("tag"));
 
         // Merge incoming states from predecessors.
 
@@ -579,17 +583,16 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
        
         for (DFANode pred : node.getPreds()) {
             RangeDomain pred_range_out = node.getPredData(pred);
-
             // Skip BOT-state predecessors that has not been visited.
-           
+            //System.out.println("pred: " + pred.getData("ir") +",pred range: " + pred_range_out +"\n");
             if (pred_range_out == null) {
                 continue;
             }
+
             if (curr_ranges == null) {
+                //System.out.println("pred range: " + pred_range_out +"\n");
                 curr_ranges = new RangeDomain(pred_range_out);
-                
             }                
-            
             else {
                 //System.out.println("curr range: " + curr_ranges + " , prev range: " + pred_range_out +"\n");        
                 curr_ranges.unionRanges(pred_range_out);
@@ -599,7 +602,8 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
 
         }
 
-       
+        
+
         if(node.getData("ir") != null && 
                         node.getData("ir").toString().contains(input_for_loop.getCondition().toString()) ){
 
@@ -610,6 +614,9 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                     //if an LVV is present in the range dictionary of the loop header node, initialize it to lambda     
 
                     Symbol LVV = SymbolTools.getSymbolOf(expr);
+
+                    if(LVV.equals(LoopTools.getLoopIndexSymbol(input_for_loop)))
+                        continue;
                     
                     //Preprocessing for the index expression of an array.
                     //If the array index expression is an unary expression,
@@ -633,16 +640,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                             DefSymbolExprs.put(LVV, access_expr);
     
                         }
-                        // else{
-                        //     List<Expression> indices = access_expr.getIndices();
-                        //     for(int i =0; i < indices.size(); i++){
-        
-                        //         if(indices.get(i) instanceof IntegerLiteral){
-                        //             integer_indices.add(indices.get(i));
-                        //         }
-                        //     }                            
-                            
-                        // }
+            
                     }
                     
                     else{
@@ -660,7 +658,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
 
             Initial_syms = curr_ranges.getSymbols();
         }
-
+        
 
         // Add initial values from declarations
         RangeAnalysis.enterScope(node, curr_ranges);
@@ -669,38 +667,46 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
 
         // Detected changes trigger propagation
         if (prev_ranges == null || !prev_ranges.equals(curr_ranges)) {
-        
-            if (node != Loop_CFG.getEntry()) {
-                // Keep the IPA result for the entry node.
-                node.putData("ranges", curr_ranges);
-            }
-
+    
             if( curr_ranges != null && prev_ranges != null && !prev_ranges.equals(curr_ranges)){
 
                curr_ranges.kill(Killed_symbols);
-                
+    
                 for(Symbol sym : curr_ranges.getSymbols()){
                     Expression exp = prev_ranges.getRange(sym);
                     if(exp != null)
                     curr_ranges.setRange(sym, exp);
 
                 }
-               
+                if(!prev_ranges.getMultiDimArrays().isEmpty()){
+                    for(ArrayAccess arr: prev_ranges.getMultiDimArrays()){
+                        Expression exp =prev_ranges.getRange(arr);
+                        if(exp != null)
+                        curr_ranges.setRange(arr, exp);
+                    }
+                }
+                //System.out.println("prev ranges: " + prev_ranges + ", curr ranges: " + curr_ranges +"\n");
                 node.putData("ranges", curr_ranges);
-
+            
+            }
+            else if (node != Loop_CFG.getEntry()) {
+                // Keep the IPA result for the entry node.
+                node.putData("ranges", curr_ranges);
             }
         
-
             // Apply state changes due to the execution of the node.
             //If the loop is imprefectly nested and has more than 1 inner loops,
             //range domains have to be currrectly updated.
             if(NumInnerLoops > 1 && node.getData("tag") !=null &&
-               !isPerfectNest &&
+               !NoLoopsInBody &&
                 node.getData("tag").getClass().equals(PragmaAnnotation.class)){
+                System.out.println("Custom update\n");
                 RangeAnalysis.UpdateCollapNode(node);
             }
-             else
-                RangeAnalysis.updateRanges(node);        
+             else{
+                RangeAnalysis.updateRanges(node);  
+             }      
+             
             
            
             //RangeAnalysis.exitScope(node);
@@ -710,6 +716,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                 // Do not add successors for infeasible paths
                 if (succ.getPredData(node) != null) {
                     RangeDomain SuccRange =  succ.getPredData(node);
+                    //System.out.println( succ.getData("ir") + ",edge ranges: " + SuccRange +"\n");
                     //Remove entry for Loop index in the range dictionaries of successors
                     //Loop index is a special case and will be considered separately.
                     SuccRange.removeRange(LoopTools.getLoopIndexSymbol(input_for_loop));
@@ -736,26 +743,21 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                 //System.out.println("Subscripted-subscript analysis for Loop: " + LoopName + "\n" );  
                 SubSubPhasetwo(node.getData("ranges") , LoopLVVs , input_for_loop , DefSymbolExprs,
                                       Prior_Ranges , node.getData("array-subscripts"));                
-                
+
                 Annotation loop_ant = input_for_loop.getAnnotation(PragmaAnnotation.class, "name");
                 
                 //Collecting the aggregation information corresponding to each loop
                 Loop_agg_ranges.put(loop_ant.toString(), node.getData("ranges"));
 
                 //Update successors or ranges associated with the outgoing control flow edges
-                for(DFANode successor : node.getSuccs()){
-
-                    successor.putPredData(node, node.getData("ranges"));
-
-                }
 
 
             }
 
-                if(node.getData("ir") != null)
-                System.out.println(" node: " + node.getData("ir")+ ", ranges: " + node.getData("ranges") +"\n");
-                else
-                System.out.println(" node: " + node.getData("tag")+ ", ranges: " + node.getData("ranges") +"\n");
+                // if(node.getData("ir") != null)
+                // System.out.println(" node: " + node.getData("ir")+ ", ranges: " + node.getData("ranges") +"\n");
+                // else
+                // System.out.println(" node: " + node.getData("tag")+ ", ranges: " + node.getData("ranges") +"\n");
           
    
         }
@@ -792,8 +794,6 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
         List<Symbol> SSR_variables = new ArrayList<Symbol>();
         Expression LoopIdx = LoopTools.getIndexVariable(input_for_loop);
 
-        //System.out.println("Phase 1 exprs: " + LoopRangeExpressions +"\n");
-
         RangeExpression LoopIdxRange = getLoopIndexRange(input_for_loop, RangeValsBeforeLoop);
 
         Expression LoopIterationCount = Symbolic.add(Symbolic.subtract(LoopIdxRange.getUB() , LoopIdxRange.getLB()), new IntegerLiteral(1));
@@ -812,13 +812,18 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
         }
 
     
-        // System.out.println("Phase 2 Analysis:\n");
+        //System.out.println("Phase 2 Analysis:\n");
 
         //Collect info about the loop index symbol - aggregate range and property
         LoopIdxRange = (RangeExpression)LoopRangeExpressions.substituteForwardRange(LoopIdxRange);
         LoopRangeExpressions.setRange(LoopIndexSymbol, LoopIdxRange);
         SSR_variables.add(LoopIndexSymbol);
         variable_property.put(LoopIndexSymbol, "STRICT_MONOTONIC");
+
+        if(!LoopRangeExpressions.getMultiDimArrays().isEmpty()){
+           Aggregate_MultiDimArrayExprs(LoopRangeExpressions, input_for_loop, SSR_variables);
+           return;
+        }
 
         // System.out.println("LVV: " + LoopIndexSymbol + "(loop index) \nAggregate range: " + LoopRangeExpressions.getRange(LoopIndexSymbol) + 
         //                                                 "\nproperty: " + variable_property.get(LoopIndexSymbol) +"\n");
@@ -829,9 +834,6 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
 
                for(Symbol sym : Symbols_to_analyze){
             
-                   if(sym.equals(LoopIndexSymbol))
-                        continue;
-    
                         //Check if the symbol is the loop index variable
                        
                         Expression LVV_Value_expr = LoopRangeExpressions.getRange(sym);
@@ -963,6 +965,102 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
         
                LoopRangeExpressions.removeRange(LoopIndexSymbol);
           
+        }
+
+        /**
+         * Aggregating Multidimensional Subscript arrays.
+         * @param LoopRangeExpressions - Loop Phase 1 Expressions
+         * @param inputForLoop - The input for loop
+         */
+
+        private static void Aggregate_MultiDimArrayExprs(RangeDomain LoopRangeExpressions, 
+                                                        ForLoop inputForLoop, List<Symbol> SSR_Vars){
+
+            Symbol LoopIndexSymbol = LoopTools.getLoopIndexSymbol(inputForLoop);
+            Expression LoopIdxRange = LoopRangeExpressions.getRange(LoopIndexSymbol);
+            SSR_Vars.add(LoopIndexSymbol);
+
+            if(!LoopTools.isOutermostLoop(inputForLoop)){
+                //Substitute available range expressions for symbols in the Phase 1
+                //expressions and simplify for analysis
+                for(ArrayAccess arr : LoopRangeExpressions.getMultiDimArrays()){
+                    Expression LVV_Value_Expr = LoopRangeExpressions.getRange(arr);
+                    LVV_Value_Expr = LoopRangeExpressions.substituteForwardRange(LVV_Value_Expr);
+                    LoopRangeExpressions.setRange(arr, LVV_Value_Expr);
+                }
+                LoopRangeExpressions.setRange(LoopIndexSymbol, LoopIdxRange);
+                return;
+            }
+                //For analysis w.r.t. outermost loop, range expressions of all variables
+                //except loop index variable are substituted.
+                LoopRangeExpressions.removeRange(LoopIndexSymbol);
+
+                List<Expression> RangeExprs = new ArrayList<>();
+                Set<Integer> Integer_idx = new HashSet<>();
+                Set<Symbol> DefinedArray_Syms = new HashSet<>();
+                List<IntegerLiteral> Integer_idx_vals = new ArrayList<>();
+                TreeSet<Expression> Expr_idx_vals = new TreeSet<>();
+
+                //Go through every Array range expression and determine, the integer
+                // and non-integer indices. This is required for the aggregation process.
+                //Also forward substitute for any variables who's range expressions are
+                //available in the SVD.
+                for(ArrayAccess arr : LoopRangeExpressions.getMultiDimArrays()){
+                    DefinedArray_Syms.add(SymbolTools.getSymbolOf(arr));
+                    Expression LVV_Value_Expr = LoopRangeExpressions.getRange(arr);
+                    
+                    LVV_Value_Expr = LoopRangeExpressions.substituteForwardRange(LVV_Value_Expr);
+                    RangeExprs.add(LVV_Value_Expr);
+                    //Integer substitution
+                    List<Expression> arr_indices = arr.getIndices();
+
+                    for(int i=0; i < arr_indices.size(); i++){
+                        Expression idx = arr_indices.get(i);
+                        if(idx instanceof IntegerLiteral){
+                            Integer_idx.add((Integer)i);
+                            Integer_idx_vals.add((IntegerLiteral)idx);
+                        }
+                        else{
+                                Expr_idx_vals.add(idx);
+                        }
+                    }
+                    LoopRangeExpressions.setRange(arr, LVV_Value_Expr);
+                }
+
+                //Perform the analysis if only 1 multi-dimensional array is defined.
+                if(Integer_idx.size() > 1 || DefinedArray_Syms.size() > 1)
+                    return;
+              
+                //Simplify/Unionize the value expressions to determine 1 consolidated expression
+                Expression simplified_expr = RangeExprs.get(0);
+                for(int i=1; i < RangeExprs.size(); i++){
+                    simplified_expr = LoopRangeExpressions.unionRanges(simplified_expr, LoopRangeExpressions, RangeExprs.get(i), LoopRangeExpressions);
+                }
+                
+                //Determine if a recurrence relation exists w.r.t. the consolidated expression.
+                Expression SSR_expr = Find_SSR_Var(simplified_expr,SSR_Vars);
+                Expression SubscriptExp = Expr_idx_vals.last();
+
+                  if( SSR_expr != null 
+                            && is_simple_subscript(SubscriptExp, LoopTools.getIndexVariable(inputForLoop))){
+
+                    Expression remainder = null;
+                    if(simplified_expr instanceof RangeExpression){
+                        Expression lb = ((RangeExpression)simplified_expr).getLB();
+                        Expression ub = ((RangeExpression)simplified_expr).getUB();
+                        Expression remainder_lb = Symbolic.subtract(lb, SSR_expr);
+                        Expression remainder_ub = Symbolic.subtract(ub, SSR_expr);
+                        remainder = new RangeExpression(remainder_lb, remainder_ub);
+                    }
+                    else
+                        remainder = Symbolic.subtract(simplified_expr, SSR_expr);
+    
+                    if(!(remainder instanceof ArrayAccess) && is_PNN(remainder))
+                        System.out.println("Recurrence identified" + "\n"); 
+                  }   
+
+            return;
+
         }
     
 
@@ -1105,8 +1203,12 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
                 break;
             }
             Symbol sym = SymbolTools.getSymbolOf(expr);
-            if(SSR_variables.contains(sym))
-                return expr;
+            if(SSR_variables.contains(sym)){
+                if(expr.getParent()!=null)
+                    return (Expression)expr.getParent();
+                else
+                    return expr;
+            }
         }
 
         return null;
@@ -1304,106 +1406,6 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG, Ran
 
         return;
 
-    }
-
-    private static void UpdateMultiDimenRanges(RangeDomain curr_Ranges,ForLoop input_for_loop,
-                                            CFGraph LoopCFG, RangeDomain Prior_Ranges)
-    {
-        Symbol LoopIdx = LoopTools.getLoopIndexSymbol(input_for_loop);
-        RangeExpression LoopRange = getLoopIndexRange(input_for_loop, null);
-        Annotation LoopAnnotation = input_for_loop.getAnnotation(PragmaAnnotation.class, "name");
-        curr_Ranges.setRange(LoopIdx, LoopRange);
-        System.out.println("Loop: " + LoopIdx +"\n");
-
-      
-      //  if(LoopTools.isInnermostLoop(input_for_loop)){
-            for(int i=0; i < LoopCFG.size(); i++){
-                DFANode node = LoopCFG.getNode(i);
-                if(node.getData("stmt") != null &&
-                node.getData("stmt") instanceof ExpressionStatement){
-                    ExpressionStatement stmt = (ExpressionStatement)node.getData("stmt");
-                    Expression expr = stmt.getExpression();
-                    if(expr instanceof AssignmentExpression){
-                        Expression defined_expr = ((AssignmentExpression)expr).getLHS();
-                        Expression new_value = ((AssignmentExpression)expr).getRHS();
-
-                        if(defined_expr instanceof ArrayAccess){
-                            curr_Ranges.setRange((ArrayAccess)defined_expr, new_value);
-                        }
-                        else{
-                            curr_Ranges.setRange(SymbolTools.getSymbolOf(defined_expr), new_value);
-                            //System.out.println("expr: " + defined_expr + "," +new_value + "\n");
-                        }
-                    }
-                }
-            }
-      //  }
-
-      
-            Map<ArrayAccess,Expression> Multi_dim_init = curr_Ranges.getMultiDimenRanges();
-           
-            for(ArrayAccess access : Multi_dim_init.keySet()){
-                Expression value_expr = Multi_dim_init.get(access);
-                value_expr = curr_Ranges.substituteForwardRange(value_expr);
-                curr_Ranges.setRange(access, value_expr);
-            }
-
-
-        System.out.println("ranges: " + curr_Ranges.getMultiDimenRanges() +"\n");
-
-        // for(int i=0; i < LoopCFG.size(); i++){
-        //     DFANode node = LoopCFG.getNode(i);
-
-        //     if(node.getData("tag") != null)
-        //      System.out.println("tag: " + node.getData("tag") +"\n");
-        // }
-       
-
-    }
-
-
-    private static RangeDomain DefMultiDim_ArraysList(ForLoop input_for_loop)
-    {
-
-        RangeDomain curr_Ranges = new RangeDomain();
-
-        curr_Ranges.InitilizeMultiDimenRD();
-
-        Set<Expression> DefExprs = DataFlowTools.getDefMap(input_for_loop.getBody()).keySet();
-
-        Map<Symbol, Set<Integer>> DefSymbolsMap = DataFlowTools.getDefSymbolMap(input_for_loop.getBody());
-
-
-           if(DefSymbolsMap.size() == 1){
-                
-                Set<Symbol> DefSymbols = DefSymbolsMap.keySet();
-
-                Symbol def_symbol = DefSymbols.iterator().next();
-
-                if(!def_symbol.getArraySpecifiers().isEmpty()){
-                    
-                    ArraySpecifier spec =  (ArraySpecifier)def_symbol.getArraySpecifiers().get(0);
-
-                    if(spec.getNumDimensions() > 2){
-                        String array_name = def_symbol.getSymbolName();
-
-                        Iterator expr_iter = DefExprs.iterator();
-
-                        while(expr_iter.hasNext()){
-                            ArrayAccess array_expr = (ArrayAccess)expr_iter.next();
-                            IDExpression id = new NameID(array_expr.toString());
-                            
-                            if(SymbolTools.getSymbolOf(array_expr).getSymbolName().equals(array_name)){
-                                curr_Ranges.setRange(array_expr, array_expr);
-                            }
-                        }
-
-                    }
-                }
-                    
-            }                                                     
-
-            return curr_Ranges;
     }
 
     private static boolean isCanonicalLoopNest(LinkedList<Loop>LoopNest){

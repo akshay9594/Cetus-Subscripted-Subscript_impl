@@ -58,7 +58,7 @@ public class RangeDomain implements Cloneable, Domain {
     // Set of symbolic value ranges.
     private LinkedHashMap<Symbol, Expression> ranges;
 
-    private static LinkedHashMap<ArrayAccess, Expression> multi_dimen_arr_ranges;
+    private LinkedHashMap<ArrayAccess, Expression> multi_dimen_arr_ranges;
 
     // Global comparison depth counter
     private int compare_depth;
@@ -92,6 +92,9 @@ public class RangeDomain implements Cloneable, Domain {
             for (Symbol var : other.ranges.keySet()) {
                 setRange(var, other.getRange(var));
             }
+            for(ArrayAccess arr : other.multi_dimen_arr_ranges.keySet()){
+                setRange(arr, other.multi_dimen_arr_ranges.get(arr));
+            }
         }
     }
 
@@ -121,10 +124,6 @@ public class RangeDomain implements Cloneable, Domain {
     */
     public int size() {
         return ranges.size();
-    }
-
-    public void InitilizeMultiDimenRD(){
-        multi_dimen_arr_ranges = new LinkedHashMap<ArrayAccess,Expression>();
     }
 
     /**
@@ -159,6 +158,10 @@ public class RangeDomain implements Cloneable, Domain {
     */
     public Expression getRange(Symbol var) {
         return ranges.get(var);
+    }
+
+    public Expression getRange(ArrayAccess var) {
+        return multi_dimen_arr_ranges.get(var);
     }
 
     /**
@@ -203,6 +206,10 @@ public class RangeDomain implements Cloneable, Domain {
         return ranges.keySet();
     }
 
+    public Set<ArrayAccess> getMultiDimArrays() {
+        return multi_dimen_arr_ranges.keySet();
+    }
+
     /**
     * Returns string for this range domain.
     * @return string representation of this object.
@@ -212,9 +219,18 @@ public class RangeDomain implements Cloneable, Domain {
         StringBuilder sb = new StringBuilder(80);
         sb.append("[");
         Map<String, Expression> ordered = new TreeMap<String, Expression>();
+        
+      
         for (Symbol var : ranges.keySet()) {
             ordered.put(var.getSymbolName(), getRange(var));
         }
+
+        if(!multi_dimen_arr_ranges.isEmpty()){
+            for(ArrayAccess arr: multi_dimen_arr_ranges.keySet()){
+                ordered.put(arr.toString(), getRange(arr));
+            }
+        }
+        
         Iterator<String> var_iter = ordered.keySet().iterator();
         if (var_iter.hasNext()) {
             String var_name = var_iter.next();
@@ -967,6 +983,18 @@ public class RangeDomain implements Cloneable, Domain {
             } else {
                 ret.setRange(symbol, subst);
             }
+        }
+        return ret;
+    }
+
+    public RangeDomain substituteForwardMultiDimArray(RangeDomain rd) {
+        RangeDomain ret = new RangeDomain();
+        Set<ArrayAccess> arrayaccesses = rd.getMultiDimArrays();
+        for (ArrayAccess arr : arrayaccesses) {
+            Expression range = rd.getRange(arr);
+            System.out.println("range: " + range + ",syms: " + SymbolTools.getAccessedSymbols(range) +"\n");
+            Expression subst = substituteForwardRange(range);
+            ret.setRange(arr, subst);
         }
         return ret;
     }
@@ -2424,7 +2452,4 @@ public class RangeDomain implements Cloneable, Domain {
         return ret;
     }
 
-    public static Map<ArrayAccess,Expression> getMultiDimenRanges(){
-        return multi_dimen_arr_ranges;
-    }
 }

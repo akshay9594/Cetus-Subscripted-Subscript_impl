@@ -917,8 +917,6 @@ public class RangeAnalysis extends AnalysisPass
         if (o instanceof ExpressionStatement) {
             o = ((ExpressionStatement)o).getExpression();
         }
-
-
         // Side-effect node
         if (o instanceof Traversable) {
             Traversable t = (Traversable)o;
@@ -1360,7 +1358,7 @@ public class RangeAnalysis extends AnalysisPass
             //System.out.println("ranges out " + ranges_out + " , in !no-change " +"\n");
         }
         // Update successors.
-        //System.out.println("ranges out " + ranges_out +"\n");
+        //System.out.println("ranges out: " + ranges_out +"\n");
       
         for (DFANode succ : node.getSuccs()) {
             succ.putPredData(node, ranges_out);

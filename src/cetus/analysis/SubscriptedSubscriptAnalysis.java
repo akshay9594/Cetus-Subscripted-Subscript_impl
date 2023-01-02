@@ -232,39 +232,6 @@ private static void wrapper(CFGraph SubroutineGraph){
                             }
                           }
 
-                        // for(int i=Loops_in_Nest.size()-1 ; i >= 0 ; i--){
-
-                        //     ForLoop innerloop = (ForLoop)Loops_in_Nest.get(i);
-    
-                        //     int loopnestdepth = LoopTools.calculateInnerLoopNest(innerloop).size();
-                        
-                        //     if(innerloop.equals(outermost_for_loop)){
-                        //         LoopControlFlowGraph = OuterLoopCFG;
-                        //     }
-                        //     else{
-                        //         LoopControlFlowGraph = new CFGraph(innerloop);
-                        //         LoopControlFlowGraph.normalize();
-                        //     }
-
-                        //     // if( MultDimenArrayInit.getMultiDimenRanges() != null && 
-                        //     //     !innerloop.equals(outermost_for_loop)){
-                        //     //     UpdateMultiDimenRanges(MultDimenArrayInit, innerloop ,OuterLoopCFG,
-                        //     //     RangeValuesBeforeCurrentLoop.get(LoopTools.getLoopName(outermost_for_loop)));
-                        //     //  }
-                        //     // else{
-                        //         SubSubAnalysis(innerloop, LoopControlFlowGraph ,
-                        //         RangeValuesBeforeCurrentLoop.get(LoopTools.getLoopName(outermost_for_loop)),loopnestdepth);
-                        //     //}
-
-                        //     if(innerloop.equals(outermost_for_loop)){
-                        //         node = CollapseLoopinCFG(SubroutineGraph, outermost_for_loop, node);
-                        //     }
-                        //     else{
-                        //         CollapseLoopinCFG(OuterLoopCFG, innerloop, null);
-                        //     }
-
-
-                        // }
                     }
                     else if(Loops_in_Nest.size() == 1){
                              SubSubAnalysis(outermost_for_loop, OuterLoopCFG ,
@@ -421,7 +388,6 @@ private static void wrapper(CFGraph SubroutineGraph){
 
             }
 
-            
 
             if(node.getData("tag")!= null && node.getData("tag").equals("FOREXIT")){
                 NumberForExits++;
@@ -968,7 +934,8 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
         }
 
         /**
-         * Aggregating Multidimensional Subscript arrays.
+         * Aggregating Multidimensional Subscript arrays. Analysis to determine an array property
+         * is performed only with the outermost loop i.e. w.r.t the leftmost array dimension.
          * @param LoopRangeExpressions - Loop Phase 1 Expressions
          * @param inputForLoop - The input for loop
          */
@@ -980,6 +947,8 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
             Expression LoopIdxRange = LoopRangeExpressions.getRange(LoopIndexSymbol);
             SSR_Vars.add(LoopIndexSymbol);
 
+            //If the loop being analyzed is not the outermost loop, simply forward substitute
+            //range expressions for variables.
             if(!LoopTools.isOutermostLoop(inputForLoop)){
                 //Substitute available range expressions for symbols in the Phase 1
                 //expressions and simplify for analysis
@@ -1056,8 +1025,15 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                         remainder = Symbolic.subtract(simplified_expr, SSR_expr);
     
                     if(!(remainder instanceof ArrayAccess) && is_PNN(remainder))
-                        System.out.println("Recurrence identified" + "\n"); 
-                  }   
+                    {
+                        Symbol Defined_Array = DefinedArray_Syms.iterator().next();
+                        if(SymbolTools.getAccessedSymbols(SSR_expr).iterator().next().equals(LoopIndexSymbol))
+                            variable_property.put(Defined_Array, "STRICT_MONOTONIC");
+                        //Aggregate the array access
+                    }
+
+                }
+            System.out.println("properties: " + variable_property +"\n");   
 
             return;
 

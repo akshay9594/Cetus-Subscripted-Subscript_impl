@@ -22,7 +22,7 @@ public class SubscriptedSubscriptAnalysis extends AnalysisPass{
 
     private static Map<Symbol, String> variable_property = new HashMap<>();
 
-    private static Map<Symbol,Expression> Loop_agg_subscripts = new HashMap<>();
+    private static Map<Symbol,Object> Loop_agg_subscripts = new HashMap<>();
 
     private static Expression control_expr = null;
 
@@ -666,7 +666,6 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
             if(NumInnerLoops > 1 && node.getData("tag") !=null &&
                !NoLoopsInBody &&
                 node.getData("tag").getClass().equals(PragmaAnnotation.class)){
-                System.out.println("Custom update\n");
                 RangeAnalysis.UpdateCollapNode(node);
             }
              else{
@@ -794,7 +793,10 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
         // System.out.println("LVV: " + LoopIndexSymbol + "(loop index) \nAggregate range: " + LoopRangeExpressions.getRange(LoopIndexSymbol) + 
         //                                                 "\nproperty: " + variable_property.get(LoopIndexSymbol) +"\n");
         
-        Set<Symbol> Symbols_to_analyze = new HashSet<>(LoopRangeExpressions.getSymbols());
+        List<Symbol> Symbols_to_analyze = new ArrayList<>(LoopRangeExpressions.getSymbols());
+
+        Symbols_to_analyze = determine_eval_order(Symbols_to_analyze,LoopRangeExpressions);
+
         Symbols_to_analyze.retainAll(LoopVariantVars);
 
 
@@ -943,26 +945,16 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
         private static void Aggregate_MultiDimArrayExprs(RangeDomain LoopRangeExpressions, 
                                                         ForLoop inputForLoop, List<Symbol> SSR_Vars){
 
+            
             Symbol LoopIndexSymbol = LoopTools.getLoopIndexSymbol(inputForLoop);
             Expression LoopIdxRange = LoopRangeExpressions.getRange(LoopIndexSymbol);
             SSR_Vars.add(LoopIndexSymbol);
 
-            //If the loop being analyzed is not the outermost loop, simply forward substitute
-            //range expressions for variables.
-            if(!LoopTools.isOutermostLoop(inputForLoop)){
-                //Substitute available range expressions for symbols in the Phase 1
-                //expressions and simplify for analysis
-                for(ArrayAccess arr : LoopRangeExpressions.getMultiDimArrays()){
-                    Expression LVV_Value_Expr = LoopRangeExpressions.getRange(arr);
-                    LVV_Value_Expr = LoopRangeExpressions.substituteForwardRange(LVV_Value_Expr);
-                    LoopRangeExpressions.setRange(arr, LVV_Value_Expr);
-                }
-                LoopRangeExpressions.setRange(LoopIndexSymbol, LoopIdxRange);
-                return;
-            }
                 //For analysis w.r.t. outermost loop, range expressions of all variables
                 //except loop index variable are substituted.
-                LoopRangeExpressions.removeRange(LoopIndexSymbol);
+
+                if(LoopTools.isOutermostLoop(inputForLoop))
+                    LoopRangeExpressions.removeRange(LoopIndexSymbol);
 
                 List<Expression> RangeExprs = new ArrayList<>();
                 Set<Integer> Integer_idx = new HashSet<>();
@@ -1003,12 +995,21 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                 //Simplify/Unionize the value expressions to determine 1 consolidated expression
                 Expression simplified_expr = RangeExprs.get(0);
                 for(int i=1; i < RangeExprs.size(); i++){
-                    simplified_expr = LoopRangeExpressions.unionRanges(simplified_expr, LoopRangeExpressions, RangeExprs.get(i), LoopRangeExpressions);
+                    simplified_expr = 
+                        LoopRangeExpressions.unionRanges(simplified_expr, 
+                                                        LoopRangeExpressions, 
+                                                        RangeExprs.get(i), LoopRangeExpressions);
                 }
                 
+    
+                if(simplified_expr == null){
+                    return;
+                }
                 //Determine if a recurrence relation exists w.r.t. the consolidated expression.
                 Expression SSR_expr = Find_SSR_Var(simplified_expr,SSR_Vars);
                 Expression SubscriptExp = Expr_idx_vals.last();
+                //Add the outermost loop index range back into the SVD for aggregation.
+                LoopRangeExpressions.setRange(LoopIndexSymbol, LoopIdxRange);
 
                   if( SSR_expr != null 
                             && is_simple_subscript(SubscriptExp, LoopTools.getIndexVariable(inputForLoop))){
@@ -1028,12 +1029,36 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                     {
                         Symbol Defined_Array = DefinedArray_Syms.iterator().next();
                         if(SymbolTools.getAccessedSymbols(SSR_expr).iterator().next().equals(LoopIndexSymbol))
+                        {
                             variable_property.put(Defined_Array, "STRICT_MONOTONIC");
-                        //Aggregate the array access
+                            //Aggregate the array access, specifically the index expressions.
+                            List<RangeExpression> SubExpressionRanges = new ArrayList<>();
+                            Iterator id_iter = Expr_idx_vals.descendingIterator();
+
+                            while(id_iter.hasNext()){
+                                Expression index = (Expression)id_iter.next();
+                                RangeExpression valueRange = 
+                                                (RangeExpression)LoopRangeExpressions.getRange(SymbolTools.getSymbolOf(index));
+                                SubExpressionRanges.add(valueRange);
+                            }
+
+                            //Correct aggregation w.r.t. index positions in the presence of integer index
+                            //expressions.
+                            if(Integer_idx_vals.size()>1){
+                                Expression lb = Integer_idx_vals.get(0).clone();
+                                Expression ub = Integer_idx_vals.get(Integer_idx_vals.size()-1).clone();
+                                RangeExpression integer_range = new RangeExpression(lb,ub);
+                                SubExpressionRanges.add(Integer_idx.iterator().next(), integer_range);
+                                Loop_agg_subscripts.put(Defined_Array, SubExpressionRanges);
+                            }
+
+                        }
+                        
                     }
 
                 }
-            System.out.println("properties: " + variable_property +"\n");   
+
+            //System.out.println("\nproperties: " + variable_property +"\n");   
 
             return;
 
@@ -1109,7 +1134,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
             Expression SSR_var = Find_SSR_Var(ValueExpr,  List_SSR_Vars);
             
             //An array can have class 2 recurrence if RHS is an SSR expression
-
+           
             if( SSR_var != null && is_simple_subscript(SubscriptExp, LoopIndex)){
 
                 Expression remainder = Symbolic.subtract(ValueExpr, SSR_var);
@@ -1172,7 +1197,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
     private static Expression Find_SSR_Var(Expression ValueExpression, List<Symbol> SSR_variables){
 
         DFIterator<Expression> iter = new DFIterator<Expression>(ValueExpression, Expression.class);
-
+       
         while(iter.hasNext()){
             Expression expr = iter.next();
             if(expr instanceof ArrayAccess){
@@ -1180,10 +1205,14 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
             }
             Symbol sym = SymbolTools.getSymbolOf(expr);
             if(SSR_variables.contains(sym)){
-                if(expr.getParent()!=null)
+                if(expr.getParent()!=null){
+                   
                     return (Expression)expr.getParent();
-                else
+                }
+                else{
+                   
                     return expr;
+                }
             }
         }
 
@@ -1327,6 +1356,33 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
        return false;
 
     }
+
+    /**
+     * Determines evaluation order of symbols in Phase 2. For e.g. if d[j]=p is the expression
+     * for array 'd' after Phase 1 and 'p' is an LVV, then 'p' should be evaluated before 'd' in
+     * Phase 2.
+     * @param Symbols_to_analyze - The List of Symbols to analyze in Phase 2
+     * @param LoopRangeExprs     - The SVD after Phase 1
+     * @return - Sorted SVD
+     */
+    private static List determine_eval_order(List<Symbol> Symbols_to_analyze, RangeDomain LoopRangeExprs){
+
+        for(int i=0; i < Symbols_to_analyze.size(); i++){
+            Symbol set_sym = Symbols_to_analyze.get(i);
+            Expression valueExpr = LoopRangeExprs.getRange(set_sym);
+            Symbol assigned_Sym = SymbolTools.getSymbolOf(valueExpr);
+
+            if(Symbols_to_analyze.contains(assigned_Sym)){
+                int assigned_sym_id = Symbols_to_analyze.indexOf(assigned_Sym);
+                if(i < assigned_sym_id){
+                    Collections.swap(Symbols_to_analyze, i, assigned_sym_id);
+                }
+            }
+        }
+
+        return Symbols_to_analyze;
+
+    }
     
 
     private static Set<Symbol> symmetricDifference(Set<Symbol> a, Set<Symbol> b) {
@@ -1340,19 +1396,57 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
         return result;
     }
 
+    /**
+     * Method to identify if the Loop Nest contains subscripted subscript patterns. This is required
+     * so as to ensure that subscript array analysis is not performed w.r.t. the to-be parallelized
+     * subscripted subscript loop(s).
+     * @param LoopNest - Loop nest to analyze
+     * @return
+     */
     private static boolean IdentifySubSubLoop(LinkedList<Loop> LoopNest){
 
-        for(Loop l : LoopNest){
-            ForLoop targetLoop = (ForLoop)l; 
-            Expression loop_ub = LoopTools.getUpperBoundExpression(targetLoop);
-            
-           if(IRTools.containsClass(loop_ub, ArrayAccess.class)){
+        //System.out.println("subsub: " + LoopNest +"\n");
+        Iterator loop_iter = LoopNest.iterator();
 
+        while(loop_iter.hasNext()){
+            ForLoop targetLoop = (ForLoop)loop_iter.next(); 
+            Expression loop_ub = LoopTools.getUpperBoundExpression(targetLoop);
+          
+           if(IRTools.containsClass(loop_ub, ArrayAccess.class)){
                  return true;
 
               }
             
         }
+
+        loop_iter = LoopNest.iterator();        
+        //Identify Subscripted subscript loops in the presence of multi-dimensional subscript arrays.
+        while(loop_iter.hasNext()){
+            ForLoop loop = (ForLoop)loop_iter.next();
+            List<AssignmentExpression> assign_exprs = IRTools.getExpressionsOfType(loop, AssignmentExpression.class);
+            Map<Expression,Expression> LHS_RHS_Map = new HashMap<>();
+            for(AssignmentExpression assign_expr: assign_exprs){    
+                LHS_RHS_Map.put(assign_expr.getLHS(), assign_expr.getRHS());
+            }
+
+            Set<Expression> Def_exprs = DataFlowTools.getDefSet(loop);
+           
+            for(Expression expr : Def_exprs){
+                if(expr instanceof ArrayAccess){
+                    ArrayAccess arr = (ArrayAccess)expr;
+                    List<Expression> indices = arr.getIndices();
+                    for(Expression indx : indices){
+                        if(LHS_RHS_Map.keySet().contains(indx) && (LHS_RHS_Map.get(indx) instanceof ArrayAccess)){
+                            return true;
+                        }
+                      
+                    }
+                }
+            }
+            
+            
+        }
+       
         return false;
     }
 
@@ -1384,17 +1478,6 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
 
     }
 
-    private static boolean isCanonicalLoopNest(LinkedList<Loop>LoopNest){
-
-        Iterator loop_iter = LoopNest.iterator();
-
-        while(loop_iter.hasNext()){
-            if(!LoopTools.isCanonical((Loop)loop_iter.next()))
-                return false;
-        }
-        return true;
-    }
-
     private static boolean NoLoopsInBody(LinkedList<Loop> LoopsInNest){
 
         int i;
@@ -1418,7 +1501,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
         return variable_property;
     }
 
-    public static Map<Symbol, Expression> getAggregateSubscripts(){
+    public static Map<Symbol, Object> getAggregateSubscripts(){
 
         return Loop_agg_subscripts;
 

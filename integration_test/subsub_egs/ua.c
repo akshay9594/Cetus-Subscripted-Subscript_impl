@@ -31,219 +31,219 @@ int main(){
     }
   }
 
-  // for (ie = 0; ie < nelt; ie++) {
-  //   for (iface = 0; iface < NSIDES; iface++) {
-  //     // get the collocation point index of the four local corners on the
-  //     // face iface of element ie
-  //     il1 = idel[ie][iface][0][0];
-  //     il2 = idel[ie][iface][0][LX1-1];
-  //     il3 = idel[ie][iface][LX1-1][0];
-  //     il4 = idel[ie][iface][LX1-1][LX1-1];
+//   for (ie = 0; ie < nelt; ie++) {
+//     for (iface = 0; iface < NSIDES; iface++) {
+//       // get the collocation point index of the four local corners on the
+//       // face iface of element ie
+//       il1 = idel[ie][iface][0][0];
+//       il2 = idel[ie][iface][0][LX1-1];
+//       il3 = idel[ie][iface][LX1-1][0];
+//       il4 = idel[ie][iface][LX1-1][LX1-1];
        
-  //     // get the mortar indices of the four local corners
-  //     ig1 = idmo[ie][iface][0][0][0][0];
-  //     ig2 = idmo[ie][iface][1][0][0][LX1-1];
-  //     ig3 = idmo[ie][iface][0][1][LX1-1][0];
-  //     ig4 = idmo[ie][iface][1][1][LX1-1][LX1-1];
+//       // get the mortar indices of the four local corners
+//       ig1 = idmo[ie][iface][0][0][0][0];
+//       ig2 = idmo[ie][iface][1][0][0][LX1-1];
+//       ig3 = idmo[ie][iface][0][1][LX1-1][0];
+//       ig4 = idmo[ie][iface][1][1][LX1-1][LX1-1];
 
-  //     // copy the value from tmor to tx for these four local corners
-  //     tx[il1] = tmor[ig1];
-  //     tx[il2] = tmor[ig2];
-  //     tx[il3] = tmor[ig3];
-  //     tx[il4] = tmor[ig4];
+//       // copy the value from tmor to tx for these four local corners
+//       tx[il1] = tmor[ig1];
+//       tx[il2] = tmor[ig2];
+//       tx[il3] = tmor[ig3];
+//       tx[il4] = tmor[ig4];
 
-  //     // nnje=1 for conforming faces, nnje=2 for nonconforming faces
-  //     if (cbc[ie][iface] == 3) {
-  //       nnje = 2;
-  //     } else {
-  //       nnje = 1;
-  //     }
+//       // nnje=1 for conforming faces, nnje=2 for nonconforming faces
+//       if (cbc[ie][iface] == 3) {
+//         nnje = 2;
+//       } else {
+//         nnje = 1;
+//       }
 
-  //     // for nonconforming faces
-  //     if (nnje == 2) {
-  //       // nonconforming faces have four pieces of mortar, first map them to
-  //       // two intermediate mortars, stored in tmp
-  //       r_init(tmp, LX1*LX1*2, 0.0);
+//       // for nonconforming faces
+//       if (nnje == 2) {
+//         // nonconforming faces have four pieces of mortar, first map them to
+//         // two intermediate mortars, stored in tmp
+//         r_init(tmp, LX1*LX1*2, 0.0);
 
-  //       for (ije1 = 0; ije1 < nnje; ije1++) {
-  //         for (ije2 = 0; ije2 < nnje; ije2++) {
-  //           for (col = 0; col < LX1; col++) {
-  //             // in each row col, when coloumn i=1 or LX1, the value
-  //             // in tmor is copied to tmp
-  //             i = v_end[ije2];
-  //             ig = idmo[ie][iface][ije2][ije1][col][i];
-  //             tmp[ije1][col][i] = tmor[ig];
+//         for (ije1 = 0; ije1 < nnje; ije1++) {
+//           for (ije2 = 0; ije2 < nnje; ije2++) {
+//             for (col = 0; col < LX1; col++) {
+//               // in each row col, when coloumn i=1 or LX1, the value
+//               // in tmor is copied to tmp
+//               i = v_end[ije2];
+//               ig = idmo[ie][iface][ije2][ije1][col][i];
+//               tmp[ije1][col][i] = tmor[ig];
 
-  //             // in each row col, value in the interior three collocation
-  //             // points is computed by apply mapping matrix qbnew to tmor
-  //             for (i = 1; i < LX1-1; i++) {
-  //               il = idel[ie][iface][col][i];
-  //               for (j = 0; j < LX1; j++) {
-  //                 ig = idmo[ie][iface][ije2][ije1][col][j];
-  //                 tmp[ije1][col][i] = tmp[ije1][col][i] +
-  //                   qbnew[ije2][j][i-1]*tmor[ig];
-  //               }
-  //             }
-  //           }
-  //         }
-  //       }
+//               // in each row col, value in the interior three collocation
+//               // points is computed by apply mapping matrix qbnew to tmor
+//               for (i = 1; i < LX1-1; i++) {
+//                 il = idel[ie][iface][col][i];
+//                 for (j = 0; j < LX1; j++) {
+//                   ig = idmo[ie][iface][ije2][ije1][col][j];
+//                   tmp[ije1][col][i] = tmp[ije1][col][i] +
+//                     qbnew[ije2][j][i-1]*tmor[ig];
+//                 }
+//               }
+//             }
+//           }
+//         }
 
-  //       // mapping from two pieces of intermediate mortar tmp to element
-  //       // face tx
-  //       for (ije1 = 0; ije1 < nnje; ije1++) {
-  //         // the first column, col=0, is an edge of face iface.
-  //         // the value on the three interior collocation points, tx, is
-  //         // computed by applying mapping matrices qbnew to tmp.
-  //         // the mapping result is divided by 2, because there will be
-  //         // duplicated contribution from another face sharing this edge.
-  //         col = 0;
-  //         for (i = 1; i < LX1-1; i++) {
-  //           il= idel[ie][iface][i][col];
-  //           for (j = 0; j < LX1; j++) {
-  //             tx[il] = tx[il] + qbnew[ije1][j][i-1]*
-  //               tmp[ije1][j][col]*0.5;
-  //           }
-  //         }
+//         // mapping from two pieces of intermediate mortar tmp to element
+//         // face tx
+//         for (ije1 = 0; ije1 < nnje; ije1++) {
+//           // the first column, col=0, is an edge of face iface.
+//           // the value on the three interior collocation points, tx, is
+//           // computed by applying mapping matrices qbnew to tmp.
+//           // the mapping result is divided by 2, because there will be
+//           // duplicated contribution from another face sharing this edge.
+//           col = 0;
+//           for (i = 1; i < LX1-1; i++) {
+//             il= idel[ie][iface][i][col];
+//             for (j = 0; j < LX1; j++) {
+//               tx[il] = tx[il] + qbnew[ije1][j][i-1]*
+//                 tmp[ije1][j][col]*0.5;
+//             }
+//           }
 
-  //         // for column 1 ~ lx-2
-  //         for (col = 1; col < LX1-1; col++) {
-  //           //when i=0 or LX1-1, the collocation points are also on an edge of
-  //           // the face, so the mapping result also needs to be divided by 2
-  //           i = v_end[ije1];
-  //           il = idel[ie][iface][i][col];
-  //           tx[il] = tx[il]+tmp[ije1][i][col]*0.5;
+//           // for column 1 ~ lx-2
+//           for (col = 1; col < LX1-1; col++) {
+//             //when i=0 or LX1-1, the collocation points are also on an edge of
+//             // the face, so the mapping result also needs to be divided by 2
+//             i = v_end[ije1];
+//             il = idel[ie][iface][i][col];
+//             tx[il] = tx[il]+tmp[ije1][i][col]*0.5;
 
-  //           // compute the value at interior collocation points in
-  //           // columns 1 ~ LX1-1
-  //           for (i = 1; i < LX1-1; i++) {
-  //             il = idel[ie][iface][i][col];
-  //             for (j = 0; j < LX1; j++) {
-  //               tx[il] = tx[il] + qbnew[ije1][j][i-1]* tmp[ije1][j][col];
-  //             }
-  //           }
-  //         }
+//             // compute the value at interior collocation points in
+//             // columns 1 ~ LX1-1
+//             for (i = 1; i < LX1-1; i++) {
+//               il = idel[ie][iface][i][col];
+//               for (j = 0; j < LX1; j++) {
+//                 tx[il] = tx[il] + qbnew[ije1][j][i-1]* tmp[ije1][j][col];
+//               }
+//             }
+//           }
 
-  //         // same as col=0
-  //         col = LX1-1;
-  //         for (i = 1; i < LX1-1; i++) {
-  //           il = idel[ie][iface][i][col];
-  //           for (j = 0; j < LX1; j++) {
-  //             tx[il] = tx[il] + qbnew[ije1][j][i-1]*
-  //               tmp[ije1][j][col]*0.5;
-  //           }
-  //         }
-  //       }
+//           // same as col=0
+//           col = LX1-1;
+//           for (i = 1; i < LX1-1; i++) {
+//             il = idel[ie][iface][i][col];
+//             for (j = 0; j < LX1; j++) {
+//               tx[il] = tx[il] + qbnew[ije1][j][i-1]*
+//                 tmp[ije1][j][col]*0.5;
+//             }
+//           }
+//         }
 
-  //       // for conforming faces
-  //     } else {
-  //       // face interior
-  //       for (col = 1; col < LX1-1; col++) {
-  //         for (i = 1; i < LX1-1; i++) {
-  //           il = idel[ie][iface][col][i];
-  //           ig = idmo[ie][iface][0][0][col][i];
-  //           tx[il] = tmor[ig];
-  //         }
-  //       }
+//         // for conforming faces
+//       } else {
+//         // face interior
+//         for (col = 1; col < LX1-1; col++) {
+//           for (i = 1; i < LX1-1; i++) {
+//             il = idel[ie][iface][col][i];
+//             ig = idmo[ie][iface][0][0][col][i];
+//             tx[il] = tmor[ig];
+//           }
+//         }
 
-  //       // edges of conforming faces
+//         // edges of conforming faces
 
-  //       // if local edge 0 is a nonconforming edge
-  //       if (idmo[ie][iface][0][0][0][LX1-1] != -1) {
-  //         for (i = 1; i < LX1-1; i++) {
-  //           il = idel[ie][iface][0][i];
-  //           for (ije1 = 0; ije1 < 2; ije1++) {
-  //             for (j = 0; j < LX1; j++) {
-  //               ig = idmo[ie][iface][ije1][0][0][j];
-  //               tx[il] = tx[il] + qbnew[ije1][j][i-1]*tmor[ig]*0.5;
-  //             }
-  //           }
-  //         }
+//         // if local edge 0 is a nonconforming edge
+//         if (idmo[ie][iface][0][0][0][LX1-1] != -1) {
+//           for (i = 1; i < LX1-1; i++) {
+//             il = idel[ie][iface][0][i];
+//             for (ije1 = 0; ije1 < 2; ije1++) {
+//               for (j = 0; j < LX1; j++) {
+//                 ig = idmo[ie][iface][ije1][0][0][j];
+//                 tx[il] = tx[il] + qbnew[ije1][j][i-1]*tmor[ig]*0.5;
+//               }
+//             }
+//           }
 
-  //         // if local edge 0 is a conforming edge
-  //       } else {
-  //         for (i = 1; i < LX1-1; i++) {
-  //           il = idel[ie][iface][0][i];
-  //           ig = idmo[ie][iface][0][0][0][i];
-  //           tx[il] = tmor[ig];
-  //         }
-  //       }
+//           // if local edge 0 is a conforming edge
+//         } else {
+//           for (i = 1; i < LX1-1; i++) {
+//             il = idel[ie][iface][0][i];
+//             ig = idmo[ie][iface][0][0][0][i];
+//             tx[il] = tmor[ig];
+//           }
+//         }
 
-  //       // if local edge 1 is a nonconforming edge
-  //       if (idmo[ie][iface][1][0][1][LX1-1] != -1) {
-  //         for (i = 1; i < LX1-1; i++) {
-  //           il = idel[ie][iface][i][LX1-1];
-  //           for (ije1 = 0; ije1 < 2; ije1++) {
-  //             for (j = 0; j < LX1; j++) {
-  //               ig = idmo[ie][iface][1][ije1][j][LX1-1];
-  //               tx[il] = tx[il] + qbnew[ije1][j][i-1]*tmor[ig]*0.5;
-  //             }
-  //           }
-  //         }
+//         // if local edge 1 is a nonconforming edge
+//         if (idmo[ie][iface][1][0][1][LX1-1] != -1) {
+//           for (i = 1; i < LX1-1; i++) {
+//             il = idel[ie][iface][i][LX1-1];
+//             for (ije1 = 0; ije1 < 2; ije1++) {
+//               for (j = 0; j < LX1; j++) {
+//                 ig = idmo[ie][iface][1][ije1][j][LX1-1];
+//                 tx[il] = tx[il] + qbnew[ije1][j][i-1]*tmor[ig]*0.5;
+//               }
+//             }
+//           }
 
-  //         // if local edge 1 is a conforming edge
-  //       } else {
-  //         for (i = 1; i < LX1-1; i++) {
-  //           il = idel[ie][iface][i][LX1-1];
-  //           ig = idmo[ie][iface][0][0][i][LX1-1];
-  //           tx[il] = tmor[ig];
-  //         }
-  //       }
+//           // if local edge 1 is a conforming edge
+//         } else {
+//           for (i = 1; i < LX1-1; i++) {
+//             il = idel[ie][iface][i][LX1-1];
+//             ig = idmo[ie][iface][0][0][i][LX1-1];
+//             tx[il] = tmor[ig];
+//           }
+//         }
 
-  //       // if local edge 2 is a nonconforming edge
-  //       if (idmo[ie][iface][0][1][LX1-1][1] != -1) {
-  //         for (i = 1; i < LX1-1; i++) {
-  //           il = idel[ie][iface][LX1-1][i];
-  //           for (ije1 = 0; ije1 < 2; ije1++) {
-  //             for (j = 0; j < LX1; j++) {
-  //               ig = idmo[ie][iface][ije1][1][LX1-1][j];
-  //               tx[il] = tx[il] + qbnew[ije1][j][i-1]*tmor[ig]*0.5;
-  //             }
-  //           }
-  //         }
+//         // if local edge 2 is a nonconforming edge
+//         if (idmo[ie][iface][0][1][LX1-1][1] != -1) {
+//           for (i = 1; i < LX1-1; i++) {
+//             il = idel[ie][iface][LX1-1][i];
+//             for (ije1 = 0; ije1 < 2; ije1++) {
+//               for (j = 0; j < LX1; j++) {
+//                 ig = idmo[ie][iface][ije1][1][LX1-1][j];
+//                 tx[il] = tx[il] + qbnew[ije1][j][i-1]*tmor[ig]*0.5;
+//               }
+//             }
+//           }
 
-  //         // if local edge 2 is a conforming edge
-  //       } else {
-  //         for (i = 1; i < LX1-1; i++) {
-  //           il = idel[ie][iface][LX1-1][i];
-  //           ig = idmo[ie][iface][0][0][LX1-1][i];
-  //           tx[il] = tmor[ig];
-  //         }
-  //       }
+//           // if local edge 2 is a conforming edge
+//         } else {
+//           for (i = 1; i < LX1-1; i++) {
+//             il = idel[ie][iface][LX1-1][i];
+//             ig = idmo[ie][iface][0][0][LX1-1][i];
+//             tx[il] = tmor[ig];
+//           }
+//         }
 
-  //       // if local edge 3 is a nonconforming edge
-  //       if (idmo[ie][iface][0][0][LX1-1][0] != -1) {
-  //         for (i = 1; i < LX1-1; i++) {
-  //           il = idel[ie][iface][i][0];
-  //           for (ije1 = 0; ije1 < 2; ije1++) {
-  //             for (j = 0; j < LX1; j++) {
-  //               ig = idmo[ie][iface][0][ije1][j][0];
-  //               tx[il] = tx[il] + qbnew[ije1][j][i-1]*tmor[ig]*0.5;
-  //             }
-  //           }
-  //         }
-  //         // if local edge 3 is a conforming edge
-  //       } else {
-  //         for (i = 1; i < LX1-1; i++) {
-  //           il = idel[ie][iface][i][0];
-  //           ig = idmo[ie][iface][0][0][i][0];
-  //           tx[il] = tmor[ig];
-  //         }
-  //       }
-  //     }
-  //   }
-  // }
+//         // if local edge 3 is a nonconforming edge
+//         if (idmo[ie][iface][0][0][LX1-1][0] != -1) {
+//           for (i = 1; i < LX1-1; i++) {
+//             il = idel[ie][iface][i][0];
+//             for (ije1 = 0; ije1 < 2; ije1++) {
+//               for (j = 0; j < LX1; j++) {
+//                 ig = idmo[ie][iface][0][ije1][j][0];
+//                 tx[il] = tx[il] + qbnew[ije1][j][i-1]*tmor[ig]*0.5;
+//               }
+//             }
+//           }
+//           // if local edge 3 is a conforming edge
+//         } else {
+//           for (i = 1; i < LX1-1; i++) {
+//             il = idel[ie][iface][i][0];
+//             ig = idmo[ie][iface][0][0][i][0];
+//             tx[il] = tmor[ig];
+//           }
+//         }
+//       }
+//     }
+//   }
 
-  return 0;
-
-
-}
+   return 0;
 
 
-void r_init(double a[], int n, double _const)
-{
-  int i;
+ }
 
-  for (i = 0; i < n; i++) {
-    a[i] = _const;
-  }
-}
+
+// void r_init(double a[], int n, double _const)
+// {
+//   int i;
+
+//   for (i = 0; i < n; i++) {
+//     a[i] = _const;
+//   }
+// }

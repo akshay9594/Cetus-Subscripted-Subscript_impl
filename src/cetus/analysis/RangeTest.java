@@ -739,7 +739,7 @@ public class RangeTest implements DDTest {
         RangeExpression Outerloop_range = getLoopRange(Outerloop);
 
         Map<Symbol, String> VarProps_Map = SubscriptedSubscriptAnalysis.getVariableProperties();
-        Map<Symbol,Expression> AggSubs_Map =  SubscriptedSubscriptAnalysis.getAggregateSubscripts();
+        Map<Symbol,Object> AggSubs_Map =  SubscriptedSubscriptAnalysis.getAggregateSubscripts();
        
         String Outerloop_ant = (Outerloop.getAnnotation(PragmaAnnotation.class, "name")).toString();
     

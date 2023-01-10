@@ -118,6 +118,10 @@ public class RangeDomain implements Cloneable, Domain {
         ranges.clear();
     }
 
+    public void multiDimRDclear() {
+        multi_dimen_arr_ranges.clear();
+    }
+
     /**
     * Returns the number of value ranges in the map.
     * @return  the number of value ranges.
@@ -987,17 +991,6 @@ public class RangeDomain implements Cloneable, Domain {
         return ret;
     }
 
-    public RangeDomain substituteForwardMultiDimArray(RangeDomain rd) {
-        RangeDomain ret = new RangeDomain();
-        Set<ArrayAccess> arrayaccesses = rd.getMultiDimArrays();
-        for (ArrayAccess arr : arrayaccesses) {
-            Expression range = rd.getRange(arr);
-            System.out.println("range: " + range + ",syms: " + SymbolTools.getAccessedSymbols(range) +"\n");
-            Expression subst = substituteForwardRange(range);
-            ret.setRange(arr, subst);
-        }
-        return ret;
-    }
 
     // Remove any ranges with a self cycle, e.g., a=[0,a]
     protected void removeRecurrence() {

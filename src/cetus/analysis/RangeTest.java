@@ -396,7 +396,10 @@ public class RangeTest implements DDTest {
                     parallel_loops.put(loop, TEST3_PASS);       //Dependencing testing for subscripted subscripts
                     placed = true;
                     ParallelSubSubLoops.add(loop);
-                }  
+                }
+                else if(test5(loop, inner_permuted)){
+                   ;
+                }    
                 
                 else if (!parallel_loops.containsKey(perm_loop) ||
                            inner_permuted.isEmpty()) {
@@ -705,6 +708,20 @@ public class RangeTest implements DDTest {
         return ret;
     }
 
+    private boolean test5(Loop loop, Set<Loop> inner_permloops){
+
+        boolean ret = false;
+
+        ret = ( IRTools.containsClass(f, ArrayAccess.class) && 
+                IRTools.containsClass(g, ArrayAccess.class) &&
+                rtest5(f, g, loop, inner_permloops)
+            );
+
+        return ret;
+    }
+
+
+
 
     /**
      * Data dependence testing in the presence of subscripted subscript expressions of the form-
@@ -734,6 +751,12 @@ public class RangeTest implements DDTest {
                             Loop loop, 
                            Set<Loop> Innerloops){
 
+        
+        if(!SingleDimensional_SubscriptArrays(e1) ||
+            !SingleDimensional_SubscriptArrays(e2))
+                return false;
+
+       
         ForLoop Outerloop = (ForLoop)loop;
         Expression OuterLoopstride =  LoopTools.getIncrementExpression(Outerloop);
         RangeExpression Outerloop_range = getLoopRange(Outerloop);
@@ -864,6 +887,11 @@ public class RangeTest implements DDTest {
                             Loop loop, 
                             Set<Loop> Innerloops){
 
+
+        if(!SingleDimensional_SubscriptArrays(e1) ||
+                !SingleDimensional_SubscriptArrays(e2))
+                    return false;
+            
         Map<Symbol, String> VarProps_Map = SubscriptedSubscriptAnalysis.getVariableProperties();
         ForLoop CurrentLoop = (ForLoop)loop;
 
@@ -940,12 +968,44 @@ public class RangeTest implements DDTest {
         return false;
     }
 
+    private boolean rtest5(Expression e1, 
+                           Expression e2, 
+                            Loop loop, 
+                           Set<Loop> Innerloops){
+        
+        if(SingleDimensional_SubscriptArrays(e1) ||
+           SingleDimensional_SubscriptArrays(e2) ||
+           !LoopTools.isOutermostLoop(loop)) 
+            return false;
+
+        List<ArrayAccess> SubscriptArrays_e1 = IRTools.getExpressionsOfType(e1, ArrayAccess.class);
+        List<ArrayAccess> SubscriptArrays_e2 = IRTools.getExpressionsOfType(e2, ArrayAccess.class);
+
+        if(SubscriptArrays_e1.size()>1 || SubscriptArrays_e2.size()>1)
+            return false;
+        
+        //System.out.println("Loop: " + LoopTools.getIndexVariable(loop) +"\n");
+        return false;
+
+    }
+
 
     private static RangeExpression getLoopRange(ForLoop loop){
 
         Expression loop_ub = LoopTools.getUpperBoundExpression(loop) ;
         Expression loop_lb = LoopTools.getLowerBoundExpression(loop);
         return new RangeExpression(loop_lb, loop_ub);
+    }
+
+    private static boolean SingleDimensional_SubscriptArrays(Expression e){
+
+        List<ArrayAccess> Subscript_Arrays = IRTools.getExpressionsOfType(e, ArrayAccess.class);
+        for(ArrayAccess arr: Subscript_Arrays){
+            if(arr.getIndices().size()>1)
+                return false;
+        }
+        
+        return true;
     }
 
     //Helper method to analyze all the conditional statements and derive binary expressions

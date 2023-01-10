@@ -11,6 +11,9 @@ public final class SymbolTools {
     private SymbolTools() {
     }
 
+    private static Map<Symbol,Set<ArrayAccess>> Array_Accesses = new HashMap<>();
+    private static Map<Symbol,List<Expression> > Assigned_Values = new HashMap<>();
+
     /**
     * Makes links from all {@link IDExpression} objects in the program to
     * their corresponding declarators while generating warnings if there is
@@ -1650,6 +1653,32 @@ public final class SymbolTools {
             }
         }
         return false;
+    }
+
+    public static void CollectArrayAccesses(Symbol input_arr_sym, Set<ArrayAccess> accesses){
+        Array_Accesses.put(input_arr_sym, accesses);
+    }
+
+    public static boolean HasMultipleAccesses(Symbol input_arr){
+
+        if(Array_Accesses.get(input_arr) != null)
+            return true;
+        return false;
+    }
+
+    public static void clearAccesses(){
+        Array_Accesses.clear();
+    }
+
+    public static void CollectAssignedValues(Symbol input_arr_sym, List<Expression> values){
+        Assigned_Values.put(input_arr_sym, values);
+    }
+
+    public static Set<ArrayAccess> getArrayAccesses(Symbol array){
+        return Array_Accesses.get(array);
+    }
+    public static List<Expression> getAssignedValues(Symbol array){
+        return Assigned_Values.get(array);
     }
 
    

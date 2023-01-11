@@ -1805,7 +1805,7 @@ public class RangeDomain implements Cloneable, Domain {
                                             other.getRange(var), other);
             else { 
                 result = other.getRange(var);
-                SimplifyTaggedIfCond(var,other);
+                
             }
             
             if (isOmega(result)) {
@@ -1818,13 +1818,6 @@ public class RangeDomain implements Cloneable, Domain {
         PrintTools.printlnStatus(2, tag, before, "(v)", other, "=", this);
     }
 
-
-    private static void SimplifyTaggedIfCond(Symbol var, RangeDomain predRD){
-        Expression if_tag = ArrayAccess.get_IfConditionTag(var);
-        if_tag = predRD.substituteForward(if_tag);
-        ArrayAccess.SetIfConditionTag(var, if_tag);
-
-    }
     /**
     * Widens all value ranges of "other" range domain with this range domain.
     * @param other value ranges being widened

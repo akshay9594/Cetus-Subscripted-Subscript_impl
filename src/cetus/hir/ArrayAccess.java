@@ -14,8 +14,6 @@ import java.util.Map;
 
 public class ArrayAccess extends Expression {
 
-    private static Map<Symbol,Expression> Array_IfCond_Tag = new HashMap<>();
-
     private static Method class_print_method;
 
     static {
@@ -197,13 +195,6 @@ public class ArrayAccess extends Expression {
         class_print_method = m;
     }
 
-    public static void SetIfConditionTag(Symbol input_array, Expression ifCondition){
-        Array_IfCond_Tag.put(input_array, ifCondition);
-    }
-
-    public static Expression get_IfConditionTag(Symbol keyArray){
-        return Array_IfCond_Tag.get(keyArray);
-    }
-
+   
    
 }

@@ -13,6 +13,7 @@ public final class SymbolTools {
 
     private static Map<Symbol,Set<ArrayAccess>> Array_Accesses = new HashMap<>();
     private static Map<Symbol,List<Expression>> Assigned_Values = new HashMap<>();
+    private static Map<Symbol,Expression> Array_IfCond_Tag = new HashMap<>();
     /**
     * Makes links from all {@link IDExpression} objects in the program to
     * their corresponding declarators while generating warnings if there is
@@ -1667,6 +1668,7 @@ public final class SymbolTools {
 
     public static void clearAccesses(){
         Array_Accesses.clear();
+        Assigned_Values.clear();
     }
 
     public static void CollectAssignedValues(Symbol input_arr_sym, List<Expression> values){
@@ -1678,6 +1680,14 @@ public final class SymbolTools {
     }
     public static List<Expression> getAssignedValues(Symbol array){
         return Assigned_Values.get(array);
+    }
+
+    public static void SetIfConditionTag(Symbol input_array, Expression ifCondition){
+        Array_IfCond_Tag.put(input_array, ifCondition);
+    }
+
+    public static Expression get_IfConditionTag(Symbol keyArray){
+        return Array_IfCond_Tag.get(keyArray);
     }
 
    

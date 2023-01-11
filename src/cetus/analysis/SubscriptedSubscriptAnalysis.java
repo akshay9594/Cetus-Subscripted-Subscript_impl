@@ -24,6 +24,8 @@ public class SubscriptedSubscriptAnalysis extends AnalysisPass{
 
     private static Map<Symbol,Object> Loop_agg_subscripts = new HashMap<>();
 
+    private static Map<Symbol,Object> ConsolidatedSpec = new HashMap<>();
+
     private static Expression control_expr = null;
 
     public SubscriptedSubscriptAnalysis(Program program){
@@ -952,6 +954,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                                 }
                                 //Aggregation of subscript expression of an intermittent sequence
                                 else if(ArrayAccess.get_IfConditionTag(sym) != null){
+                                    
                                     agg_subscript = new RangeExpression(new IntegerLiteral(0), array_subscript.clone());
                                     Loop_agg_subscripts.put(sym, agg_subscript);
 
@@ -961,11 +964,19 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                                 }
                             }
                             else{
-                                //System.out.println("Specs: " + arr_specs +"\n");
-                                //Do something
+
+                                //Aggregating Multi-Dimensional Array Subscript Expressions
+                                List<Expression> agg_sub = (List)Loop_agg_subscripts.get(sym);
+            
+                                if(agg_sub.contains(LoopIdx)){
+                                    int idx = agg_sub.indexOf(LoopIdx);
+                                    agg_sub.set(idx, LoopIdxRange);
+    
+                                }
+                                
                             }
      
-                            // System.out.println("LVV: " + sym + "\nclass: " + recurrence_class  + "\nAggregate subscript: " + Loop_agg_subscripts.get(sym) +
+                            // System.out.println("\nLVV: " + sym + "\nclass: " + recurrence_class  + "\nAggregate subscript: " + Loop_agg_subscripts.get(sym) +
                             //                         "\nAggregate value range: " + LoopRangeExpressions.getRange(sym) + "\nproperty: " + variable_property.get(sym) +"\n");
 
                         }
@@ -1022,59 +1033,6 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
 
         }
 
-        private static void Aggregate_MultiDimArraySubscripts(Symbol DefinedArray,
-                ForLoop inputForLoop, RangeDomain LoopRD){
-
-            
-            Set<Integer> Integer_idx = new HashSet<>();
-
-            List<IntegerLiteral> Integer_idx_vals = new ArrayList<>();
-            TreeSet<Expression> Expr_idx_vals = new TreeSet<>();
-             //Perform the analysis if only 1 multi-dimensional array is defined.
-
-            if(!LoopRD.getMultiDimArrays().isEmpty()){
-                for(ArrayAccess arr : LoopRD.getMultiDimArrays()){
-                    List<Expression> arr_indices = arr.getIndices();
-
-                    for(int i=0; i < arr_indices.size(); i++){
-                        Expression idx = arr_indices.get(i);
-                        if(idx instanceof IntegerLiteral){
-                            Integer_idx.add((Integer)i);
-                            Integer_idx_vals.add((IntegerLiteral)idx);
-                        }
-                        else{
-                                Expr_idx_vals.add(idx);
-                        }
-                    }
-
-                }
-            }
-
-            List<Expression> SubExpressionRanges = new ArrayList<>();
-            Iterator id_iter = Expr_idx_vals.iterator();
-
-            while(id_iter.hasNext()){
-                Expression index = (Expression)id_iter.next();
-                if(index.equals(LoopTools.getIndexVariable(inputForLoop))){
-                    RangeExpression valueRange = 
-                                (RangeExpression)LoopRD.getRange(SymbolTools.getSymbolOf(index));
-                    SubExpressionRanges.add(valueRange);
-                }
-            }
-            //Correct aggregation w.r.t. index positions in the presence of integer index
-            //expressions.
-            if( LoopTools.isOutermostLoop(inputForLoop) && Integer_idx_vals.size()>1){
-                Expression lb = Integer_idx_vals.get(0).clone();
-                Expression ub = Integer_idx_vals.get(Integer_idx_vals.size()-1).clone();
-                RangeExpression integer_range = new RangeExpression(lb,ub);
-                SubExpressionRanges.add(Integer_idx.iterator().next(), integer_range);
-            }
-
-            Loop_agg_subscripts.put(DefinedArray, SubExpressionRanges);
-            //System.out.println("agg subscript: " + Loop_agg_subscripts +"\n");
-
-        }
-    
 
         /**
          * Determining the Recurrence class of the LVV.
@@ -1640,12 +1598,14 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                 }
 
 
-            Symbol Defined_Array = DefinedArray_Syms.iterator().next();   
+                Symbol Defined_Array = DefinedArray_Syms.iterator().next();   
 
-            ArraySpecifier spec = (ArraySpecifier)Defined_Array.getArraySpecifiers().get(0);
-            spec.setDimensions(SubExpressionRanges);
-            SymbolTools.CollectArrayAccesses(Defined_Array,RangeExpressions.getMultiDimArrays());
-            SymbolTools.CollectAssignedValues(Defined_Array, RangeExprs);
+                if(Loop_agg_subscripts.get(Defined_Array) == null){
+                    Loop_agg_subscripts.put(Defined_Array, SubExpressionRanges);
+                }
+
+                SymbolTools.CollectArrayAccesses(Defined_Array,RangeExpressions.getMultiDimArrays());
+                SymbolTools.CollectAssignedValues(Defined_Array, RangeExprs);
         }
 
         

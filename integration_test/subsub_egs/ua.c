@@ -10,7 +10,7 @@
 #include "header.h"
 
 int main(){
-  
+
   double tmp[2][LX1][LX1];
   double tmor[LELT], tx[LELT];
   int ig1, ig2, ig3, ig4, ie, iface, il1, il2, il3, il4;

@@ -817,30 +817,31 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
             
                         //Check if the symbol is the loop index variable
                        
+                        ArraySpecifier arr_specs = null;
+                        
                         Expression LVV_Value_expr = LoopRangeExpressions.getRange(sym);
 
-                        //System.out.println("LVV: " + sym + " ,value: " + LVV_Value_expr +"\n");
+                        if(!sym.getArraySpecifiers().isEmpty())
+                            arr_specs = (ArraySpecifier)sym.getArraySpecifiers().get(0);
+
                         if(LVV_Value_expr.equals(new StringLiteral("bot")))
                           continue;
                         
                         //Aggregate list of Value Expressions for a Multi-dimensional array.
                         if(SymbolTools.HasMultipleAccesses(sym))
                         {
-                            // Set<ArrayAccess> Assigned_Exprs = SymbolTools.getArrayAccesses(sym);
-                            // List<Expression>  index_exprs = (Assigned_Exprs.iterator().next()).getIndices();
-                            // if(index_exprs.contains(LoopIdx)){
-                            //     int idx = index_exprs.indexOf(LoopIdx);
-                            //     List arr_specs = sym.getArraySpecifiers();
-                            //     arr_specs.set(idx, LoopIdxRange);
-                            //     System.out.println("arr specs: " + arr_specs +"\n");
-                            // }
             
-                            Aggregate_MultiDimArrayExprs(sym, SymbolTools.getAssignedValues(sym),
+                            Expression simplified_expr = Unionize_MultiDimArrayExprs(sym, SymbolTools.getAssignedValues(sym),
                                                         LoopRangeExpressions, SSR_variables,LoopIndexSymbol);
                                     
-                            continue;
+                            if(simplified_expr != null){
+                                LVV_Value_expr = simplified_expr;
+                                LoopRangeExpressions.multiDimRDclear();
+                                SymbolTools.clearAccesses();
+                            }
                         }
 
+                        //System.out.println("LVV: " + sym + " ,value: " + LVV_Value_expr +"\n");
                         //Identifying the recurrence class of the LVV
                     
 
@@ -915,6 +916,10 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                                     rd.unionRanges(RangeValsBeforeLoop);
                                      LoopRangeExpressions.setRange(sym, rd.getRange(sym));
                                }
+                               else if(arr_specs!=null && arr_specs.getNumDimensions() > 2){
+                                    LVV_Value_expr = LoopRangeExpressions.substituteForwardRange(LVV_Value_expr);
+                                    LoopRangeExpressions.setRange(sym, LVV_Value_expr);
+                               }
                             //    else
                             //         LoopRangeExpressions.setRange(sym, new StringLiteral("bot"));
                             break;
@@ -923,47 +928,50 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                         }
 
                         //For an array, aggregate the subscript expression if it's a simple subscript
-                        if(!sym.getArraySpecifiers().isEmpty()){
-
+                        if(arr_specs!=null){
+                           
                             Expression array_subscript = ArraySubscripts.get(sym);
                             RangeExpression agg_subscript = null;
 
-                            if(is_simple_subscript(array_subscript,LoopIdx)){
-                                agg_subscript =  LoopIdxRange;
-                                Object o = sym.getArraySpecifiers().get(0);
-                                //Check if the entire length of the array is modified.
-                                //If yes, then proceed with aggregation of the subscript.
-                                if(o instanceof ArraySpecifier){
-                                    Expression arr_len = ((ArraySpecifier)o).getDimension(0);
-                                   if((Symbolic.add(agg_subscript.getUB(),agg_subscript.getStride())).equals(arr_len))
-                                        Loop_agg_subscripts.put(sym, agg_subscript);        
-                                }
-                                else {    
-                                    Loop_agg_subscripts.put(sym, new StringLiteral("bot"));
-                                }                          
-                                
-                            }
-                            //Aggregation of subscript expression of an intermittent sequence
-                            else if(ArrayAccess.get_IfConditionTag(sym) != null){
-                                agg_subscript = new RangeExpression(new IntegerLiteral(0), array_subscript.clone());
-                                Loop_agg_subscripts.put(sym, agg_subscript);
+                            if(arr_specs.getNumDimensions()<=1){
 
-                            }
-                            else if(!Loop_agg_subscripts.keySet().contains(sym)){
-                                    Loop_agg_subscripts.put(sym, new StringLiteral("bot"));
+                                if(is_simple_subscript(array_subscript,LoopIdx)){
+                                    agg_subscript =  LoopIdxRange;
+                                    Object o = sym.getArraySpecifiers().get(0);
+                                    //Check if the entire length of the array is modified.
+                                    //If yes, then proceed with aggregation of the subscript.
+                                    if(o instanceof ArraySpecifier){
+                                        Expression arr_len = ((ArraySpecifier)o).getDimension(0);
+                                    if((Symbolic.add(agg_subscript.getUB(),agg_subscript.getStride())).equals(arr_len))
+                                            Loop_agg_subscripts.put(sym, agg_subscript);        
+                                    }
+                                    else {    
+                                        Loop_agg_subscripts.put(sym, new StringLiteral("bot"));
+                                    }                          
+                                    
+                                }
+                                //Aggregation of subscript expression of an intermittent sequence
+                                else if(ArrayAccess.get_IfConditionTag(sym) != null){
+                                    agg_subscript = new RangeExpression(new IntegerLiteral(0), array_subscript.clone());
+                                    Loop_agg_subscripts.put(sym, agg_subscript);
+
+                                }
+                                else if(!Loop_agg_subscripts.keySet().contains(sym)){
+                                        Loop_agg_subscripts.put(sym, new StringLiteral("bot"));
+                                }
                             }
                             else{
-
+                                //System.out.println("Specs: " + arr_specs +"\n");
+                                //Do something
                             }
-                            
      
-                            System.out.println("LVV: " + sym + "\nclass: " + recurrence_class  + "\nAggregate subscript: " + Loop_agg_subscripts.get(sym) +
-                                                    "\nAggregate value range: " + LoopRangeExpressions.getRange(sym) + "\nproperty: " + variable_property.get(sym) +"\n");
+                            // System.out.println("LVV: " + sym + "\nclass: " + recurrence_class  + "\nAggregate subscript: " + Loop_agg_subscripts.get(sym) +
+                            //                         "\nAggregate value range: " + LoopRangeExpressions.getRange(sym) + "\nproperty: " + variable_property.get(sym) +"\n");
 
                         }
-                        else
-                            System.out.println("LVV: " + sym  +"\nclass: " + recurrence_class + 
-                                                    "\nAggregate value range: " + LoopRangeExpressions.getRange(sym) + "\nproperty: " + variable_property.get(sym) +"\n");
+                        // else
+                        //     System.out.println("LVV: " + sym  +"\nclass: " + recurrence_class + 
+                        //                             "\nAggregate value range: " + LoopRangeExpressions.getRange(sym) + "\nproperty: " + variable_property.get(sym) +"\n");
 
 
                }
@@ -981,8 +989,9 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
          * @param inputForLoop - The input for loop
          */
 
-        private static void Aggregate_MultiDimArrayExprs(Symbol Defined_Array, List<Expression> ValueExprs, 
-                                                    RangeDomain LoopRangeExpressions, List<Symbol> SSR_Vars, Symbol LoopIndexSymbol){
+        private static Expression Unionize_MultiDimArrayExprs(Symbol Defined_Array, List<Expression> ValueExprs, 
+                                                    RangeDomain LoopRangeExpressions, List<Symbol> SSR_Vars, Symbol LoopIndexSymbol)
+        {
 
                 
                 //Simplify/Unionize the value expressions to determine 1 consolidated expression
@@ -1009,35 +1018,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
 
 
                 }
-                else{
-
-                     //If a simplified expression is determined,
-                     //Determine if a recurrence relation exists w.r.t. the consolidated expression.
-                    Expression SSR_expr = Find_SSR_Var(simplified_expr,SSR_Vars);
-
-                    if( SSR_expr != null){
-
-                        String Recurrence_Class = evaluate_SSR_Var(simplified_expr, SSR_expr);
-                        if(Recurrence_Class.equals("Unknown Class")){
-                            //If a property does not exist, aggregate the value expression
-                            simplified_expr = LoopRangeExpressions.substituteForwardRange(simplified_expr);
-                            LoopRangeExpressions.multiDimRDclear();
-                            SymbolTools.clearAccesses();
-                            LoopRangeExpressions.setRange(Defined_Array, simplified_expr);
-                        }
-                    
-                    }
-
-                }
-            
-               
-
-                //Aggregate the array access, specifically the index expressions.
-                //Aggregate_MultiDimArraySubscripts(Defined_Array, inputForLoop, LoopRangeExpressions);
-           
-            //System.out.println("\nproperties: " + variable_property +"\n");   
-
-            return;
+                return simplified_expr;
 
         }
 
@@ -1613,22 +1594,61 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
     private static void CollectMultiDimArrayInfo(RangeDomain RangeExpressions)
     {
 
+
+        Set<Integer> Integer_idx = new HashSet<>();
+
+        List<IntegerLiteral> Integer_idx_vals = new ArrayList<>();
+        TreeSet<Expression> Expr_idx_vals = new TreeSet<>();
+         //Perform the analysis if only 1 multi-dimensional array is defined.
+
         if(!RangeExpressions.getMultiDimArrays().isEmpty()){
 
             List<Expression> RangeExprs = new ArrayList<>();
             Set<Symbol> DefinedArray_Syms = new HashSet<>();
+
             for(ArrayAccess arr : RangeExpressions.getMultiDimArrays()){
                 DefinedArray_Syms.add(SymbolTools.getSymbolOf(arr));
                 RangeExprs.add(RangeExpressions.getRange(arr));
+
+                List<Expression> arr_indices = arr.getIndices();
+    
+                for(int i=0; i < arr_indices.size(); i++){
+                    Expression idx = arr_indices.get(i);
+                    if(idx instanceof IntegerLiteral){
+                        Integer_idx.add((Integer)i);
+                        Integer_idx_vals.add((IntegerLiteral)idx);
+                    }
+                    else{
+                            Expr_idx_vals.add(idx);
+                    }
+                }
             }
 
             if(DefinedArray_Syms.size()>1)
                 return;
 
+              
+                List<Expression> SubExpressionRanges = new ArrayList<>(Expr_idx_vals.descendingSet());
+    
+                //Correct aggregation w.r.t. index positions in the presence of integer index
+                //expressions.
+                if( Integer_idx_vals.size()>1){
+                    Expression lb = Integer_idx_vals.get(0).clone();
+                    Expression ub = Integer_idx_vals.get(Integer_idx_vals.size()-1).clone();
+                    RangeExpression integer_range = new RangeExpression(lb,ub);
+                    SubExpressionRanges.add(Integer_idx.iterator().next(), integer_range);
+                }
+
+
             Symbol Defined_Array = DefinedArray_Syms.iterator().next();   
+
+            ArraySpecifier spec = (ArraySpecifier)Defined_Array.getArraySpecifiers().get(0);
+            spec.setDimensions(SubExpressionRanges);
             SymbolTools.CollectArrayAccesses(Defined_Array,RangeExpressions.getMultiDimArrays());
             SymbolTools.CollectAssignedValues(Defined_Array, RangeExprs);
         }
+
+        
 
     }
 

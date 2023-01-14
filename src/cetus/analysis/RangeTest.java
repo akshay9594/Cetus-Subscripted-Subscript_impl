@@ -792,21 +792,7 @@ public class RangeTest implements DDTest {
             {
                 Expression AggSubUB = ((RangeExpression)AggSubs_Map.get(SubArray)).getUB();
                 
-                if(Symbolic.subtract(AggSubUB, LoopUB).equals(new IntegerLiteral(1)))
-                    return true;
-
-                else if(!(AggSubUB instanceof IntegerLiteral) || 
-                    !(LoopUB instanceof IntegerLiteral)){
-                
-                    Expression condition = new BinaryExpression(
-                            LoopUB.clone() ,
-                            BinaryOperator.COMPARE_LE ,
-                            AggSubUB.clone());
-
-                    ParallelSubSubLoops_Conditions.put(Outerloop, condition);
-                    //Do Something
-                }
-                return true;
+                return CheckPropertyAndLoopBounds(AggSubUB, LoopUB, Outerloop);
             }
             else {
                 RangeDomain stmt_RD = RangeAnalysis.query(f_stmt);
@@ -1016,6 +1002,9 @@ public class RangeTest implements DDTest {
         //     return false;
         
         Map<Symbol, String> VarProps_Map = SubscriptedSubscriptAnalysis.getVariableProperties();
+        Map<Symbol,Object> Agg_Subscripts = SubscriptedSubscriptAnalysis.getAggregateSubscripts();
+        RangeExpression loop_range = getLoopRange((ForLoop)loop);
+
         ForLoop CurrentLoop = (ForLoop)loop;
         Expression loop_stride = LoopTools.getIncrementExpression(CurrentLoop);
     
@@ -1047,25 +1036,51 @@ public class RangeTest implements DDTest {
             (g_symbol.getArraySpecifiers() != null) &&
             (f_symbol.equals(g_symbol))){
 
-                ArrayAccess f_array_access = (ArrayAccess)f_current_iter;
-                String array_property = VarProps_Map.get(f_symbol);
-                if(array_property != null){
-                    String[] parts = array_property.split(":");
-                    String Monotonicity_type = parts[0];
-                    if(Monotonicity_type.equals("STRICT_MONOTONIC")){
-                        String property_dim = parts[1];
-                        int int_property_dim = Integer.parseInt(property_dim);
-                        if(f_array_access.getIndex(int_property_dim).equals(loopidx)){
-                            
-                            return true;
-                        }
+            ArrayAccess f_array_access = (ArrayAccess)f_current_iter;
+            String array_property = VarProps_Map.get(f_symbol);
+            if(array_property != null){
+                String[] parts = array_property.split(":");
+                String Monotonicity_type = parts[0];
+                if(Monotonicity_type.equals("STRICT_MONOTONIC")){
+                    String property_dim = parts[1];
+                    int int_property_dim = Integer.parseInt(property_dim);
+
+                    if(f_array_access.getIndex(int_property_dim).equals(loopidx)){
+                        RangeExpression AggSub = (RangeExpression)((List)Agg_Subscripts.get(f_symbol)).get(int_property_dim);
+                        Expression AggSubUB = AggSub.getUB();
+                        Expression LoopUB = loop_range.getUB();
+                        return CheckPropertyAndLoopBounds(AggSubUB, LoopUB, CurrentLoop);
                     }
                 }
+            }
                 return false;
         }
 
 
         return false;
+
+    }
+
+
+    //Checks if the range of array values accessed in a subscripted subscript loop are the values for which a 
+    //property (Monotonicity) exists.
+    private static boolean CheckPropertyAndLoopBounds( Expression AggSubUB, Expression LoopUB, ForLoop loop){
+
+        if(Symbolic.subtract(AggSubUB, LoopUB).equals(new IntegerLiteral(1)))
+        return true;
+                
+        else if(!(AggSubUB instanceof IntegerLiteral) || 
+                !(LoopUB instanceof IntegerLiteral)){
+                                
+                Expression condition = new BinaryExpression(
+                                LoopUB.clone() ,
+                                BinaryOperator.COMPARE_LE ,
+                                AggSubUB.clone());
+
+                ParallelSubSubLoops_Conditions.put(loop, condition);
+                                    
+        }
+        return true;
 
     }
 

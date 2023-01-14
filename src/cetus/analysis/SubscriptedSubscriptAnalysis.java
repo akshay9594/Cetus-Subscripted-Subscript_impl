@@ -1018,50 +1018,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
           
         }
 
-        /**
-         * Aggregating Multidimensional Subscript arrays. Analysis to determine an array property
-         * is performed only with the outermost loop i.e. w.r.t the leftmost array dimension.
-         * @param LoopRangeExpressions - Loop Phase 1 Expressions
-         * @param inputForLoop - The input for loop
-         */
-
-        private static Expression Unionize_MultiDimArrayExprs(Symbol Defined_Array, List<Expression> ValueExprs, 
-                                                    RangeDomain LoopRangeExpressions, List<Symbol> SSR_Vars, Symbol LoopIndexSymbol)
-        {
-
-                List<Expression> Assigned_Value_Exprs = SymbolTools.getAssignedValues(Defined_Array);
-                //Simplify/Unionize the value expressions to determine 1 consolidated expression
-                Expression simplified_expr = ValueExprs.get(0);
-                for(int i=1; i < ValueExprs.size(); i++){
-                    simplified_expr = 
-                        LoopRangeExpressions.unionRanges(simplified_expr, 
-                                                        LoopRangeExpressions, 
-                                                        ValueExprs.get(i), LoopRangeExpressions);
-                }
-
-                //If the result of unionization is "bottom", go through each array expression
-                //and perform substituion of aggreagte values.
-                if(simplified_expr == null){
-                    //Go through every Array range expression and determine, the integer
-                    // and non-integer indices. This is required for the aggregation process.
-                    //Also forward substitute for any variables who's range expressions are
-                    //available in the SVD.
-                    int indx=0;
-                    for(ArrayAccess arr : LoopRangeExpressions.getMultiDimArrays()){
-                        Expression LVV_Value_Expr = LoopRangeExpressions.getRange(arr);
-                        if(Assigned_Value_Exprs.contains(LVV_Value_Expr))
-                            indx = Assigned_Value_Exprs.indexOf(LVV_Value_Expr);
-                        LVV_Value_Expr = LoopRangeExpressions.substituteForwardRange(LVV_Value_Expr);
-                        LoopRangeExpressions.setRange(arr, LVV_Value_Expr);
-                        Assigned_Value_Exprs.set(indx, LVV_Value_Expr);
-                    }
-
-
-                }
-                return simplified_expr;
-
-        }
-
+       
 
         /**
          * Determining the Recurrence class of the LVV.
@@ -1234,6 +1191,51 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
         return null;
 
     }
+
+        /**
+         * Aggregating Multidimensional Subscript arrays. Analysis to determine an array property
+         * is performed only with the outermost loop i.e. w.r.t the leftmost array dimension.
+         * @param LoopRangeExpressions - Loop Phase 1 Expressions
+         * @param inputForLoop - The input for loop
+         */
+
+        private static Expression Unionize_MultiDimArrayExprs(Symbol Defined_Array, List<Expression> ValueExprs, 
+                                                    RangeDomain LoopRangeExpressions, List<Symbol> SSR_Vars, Symbol LoopIndexSymbol)
+        {
+
+                List<Expression> Assigned_Value_Exprs = SymbolTools.getAssignedValues(Defined_Array);
+                //Simplify/Unionize the value expressions to determine 1 consolidated expression
+                Expression simplified_expr = ValueExprs.get(0);
+                for(int i=1; i < ValueExprs.size(); i++){
+                    simplified_expr = 
+                        LoopRangeExpressions.unionRanges(simplified_expr, 
+                                                        LoopRangeExpressions, 
+                                                        ValueExprs.get(i), LoopRangeExpressions);
+                }
+
+                //If the result of unionization is "bottom", go through each array expression
+                //and perform substituion of aggreagte values.
+                if(simplified_expr == null){
+                    //Go through every Array range expression and determine, the integer
+                    // and non-integer indices. This is required for the aggregation process.
+                    //Also forward substitute for any variables who's range expressions are
+                    //available in the SVD.
+                    int indx=0;
+                    for(ArrayAccess arr : LoopRangeExpressions.getMultiDimArrays()){
+                        Expression LVV_Value_Expr = LoopRangeExpressions.getRange(arr);
+                        if(Assigned_Value_Exprs.contains(LVV_Value_Expr))
+                            indx = Assigned_Value_Exprs.indexOf(LVV_Value_Expr);
+                        LVV_Value_Expr = LoopRangeExpressions.substituteForwardRange(LVV_Value_Expr);
+                        LoopRangeExpressions.setRange(arr, LVV_Value_Expr);
+                        Assigned_Value_Exprs.set(indx, LVV_Value_Expr);
+                    }
+
+
+                }
+                return simplified_expr;
+
+        }
+
 
     
 

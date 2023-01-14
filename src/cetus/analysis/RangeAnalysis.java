@@ -1289,7 +1289,16 @@ public class RangeAnalysis extends AnalysisPass
                     direction.equals("normal")){
                     ranges_out.setRange(ModifiedArray, (Expression)RHS);
             }
-            //If node is an assignment statement with a 1D array being modified and
+            //Check if the array has been previously assigned values.
+            //Individual array elements can be explicitly assigned values
+            //and not inside a loop.
+            else if((ranges_out.getRange(sym) instanceof IntegerLiteral) &&
+                    (RHS instanceof IntegerLiteral)){
+                
+                ranges_out.setRange(sym , (Expression)RHS);  
+                ranges_out.unionRanges(ranges_in);
+            }
+             //If node is an assignment statement with a 1D array being modified and
             //no dependence
             else if(direction.equals("normal") || direction.equals("recurrence")){       
                 //Handling certain types of array expressions
@@ -1297,7 +1306,6 @@ public class RangeAnalysis extends AnalysisPass
             
             }
 
-            //System.out.println("range out: " + ranges_out +"\n");
         
         }
         //Would need to handle the case where node_data is NameID

@@ -1,7 +1,7 @@
 
 /*  
   Example loop from the UA benchmark in the NAS
-  Parallel Benchmarks
+  Parallel Benchmarks (NPB 3.3)
 */
 
 #include <stdio.h>
@@ -16,6 +16,8 @@ int main(){
   int ig1, ig2, ig3, ig4, ie, iface, il1, il2, il3, il4;
   int nnje, ije1, ije2, col, i, j, ig, il;
   int ntemp, k;
+  v_end[0] = 0;
+  v_end[1] = LX1-1;
 
   for (k = 0; k < LELT; k++) {
     ntemp = k*LX1*LX1*LX1;
@@ -64,7 +66,14 @@ int main(){
       if (nnje == 2) {
         // nonconforming faces have four pieces of mortar, first map them to
         // two intermediate mortars, stored in tmp
-        r_init(tmp, LX1*LX1*2, 0.0);
+        //r_init(tmp, LX1*LX1*2, 0.0);
+        for(int x=0; x<nnje; x++){
+          for(int y=0; y< LX1; y++){
+            for(int z =0; z<LX1; z++){
+              tmp[x][y][z] = 0.0;
+            }
+          }
+        }
 
         for (ije1 = 0; ije1 < nnje; ije1++) {
           for (ije2 = 0; ije2 < nnje; ije2++) {
@@ -136,7 +145,8 @@ int main(){
         }
 
         // for conforming faces
-      } else {
+       } 
+      else {
         // face interior
         for (col = 1; col < LX1-1; col++) {
           for (i = 1; i < LX1-1; i++) {

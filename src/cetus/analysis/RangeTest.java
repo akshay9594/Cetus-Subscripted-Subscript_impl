@@ -38,7 +38,9 @@ public class RangeTest implements DDTest {
     private static final String
             TEST1_PASS = "T1",  // test1 has passed
             TEST2_PASS = "T2",  // test2 has passed
-            TEST3_PASS = "T3";
+            TEST3_PASS = "T3",
+            TEST4_PASS = "T4",
+            TEST5_PASS = "T5";
 
     // Mask for direction vectors
     private static final int
@@ -140,6 +142,7 @@ public class RangeTest implements DDTest {
         g = pair.getSubscript2();
         f_stmt = pair.getStatement1();
         g_stmt = pair.getStatement2();
+        
         // Collects necessary range information
         f_range = RangeAnalysis.query(f_stmt);
         g_range = RangeAnalysis.query(g_stmt);
@@ -393,12 +396,14 @@ public class RangeTest implements DDTest {
                     ParallelSubSubLoops.add(loop);
                 }
                 else if(test4(loop, inner_permuted)){
-                    parallel_loops.put(loop, TEST3_PASS);       //Dependencing testing for subscripted subscripts
+                    parallel_loops.put(loop, TEST4_PASS);       //Dependencing testing for subscripted subscripts
                     placed = true;
                     ParallelSubSubLoops.add(loop);
                 }
                 else if(test5(loop, inner_permuted)){
-                   ;
+                    parallel_loops.put(loop, TEST5_PASS);       //Dependencing testing for subscripted subscripts
+                    placed = true;
+                    ParallelSubSubLoops.add(loop);
                 }    
                 
                 else if (!parallel_loops.containsKey(perm_loop) ||
@@ -479,7 +484,8 @@ public class RangeTest implements DDTest {
             }
             // Current loop
             independent_vectors[loop_id] |= (DV_LT + DV_GT);       // for test2
-            if (result == TEST1_PASS || result == TEST3_PASS) {
+            if (result == TEST1_PASS || result == TEST3_PASS ||
+                result == TEST4_PASS || result == TEST5_PASS) {
                 independent_vectors[loop_id] |= (DV_ANY + DV_EQ);  // for test1
             }
             // Inner loops
@@ -554,8 +560,8 @@ public class RangeTest implements DDTest {
         max1 = RangeExpression.toRange(getRange(max1, inner_loops1)).getUB();
         min2 = RangeExpression.toRange(getRange(min2, inner_loops2)).getLB();
 
-        // System.out.println("e1: "+ e1 +" , e2: "+ e2);
-        // System.out.println("max1: "+ max1 +" , min2: "+ min2 +"\n");
+        //System.out.println("e1: "+ e1 +" , e2: "+ e2);
+        //System.out.println("max1: "+ max1 +" , min2: "+ min2 +"\n");
         if (max1 instanceof InfExpression || min2 instanceof InfExpression) {
             PrintTools.printlnStatus(3, tag, "max1 =", max1, "min2 =", min2);
             return false;
@@ -675,7 +681,7 @@ public class RangeTest implements DDTest {
         Relation rel = rd.compare(max1, min2);
         PrintTools.printlnStatus(3, tag, "compare:", max1, rel, min2);
 
-        // System.out.println("f: " + f  + " , g:" + g +"\n");
+        //System.out.println("f: " + f  + " , g:" + g +"\n");
         // System.out.println("max1: " + max1 +" , min2: " + min2 +" , rel: " + rel +"\n");
         return rel.isLT();
     }
@@ -756,7 +762,9 @@ public class RangeTest implements DDTest {
             !SingleDimensional_SubscriptArrays(e2))
                 return false;
 
-       
+        //System.out.println("f: " + e1 + ",g: " + e2 + "result = " + f_stmt +"\n");
+        
+
         ForLoop Outerloop = (ForLoop)loop;
         Expression OuterLoopstride =  LoopTools.getIncrementExpression(Outerloop);
         RangeExpression Outerloop_range = getLoopRange(Outerloop);
@@ -777,12 +785,13 @@ public class RangeTest implements DDTest {
         //Normally observed for subscripted subscript loops involving intermittant sequences.
         if(Innerloops.size() == 0){
             Symbol SubArray = SymbolTools.getSymbolOf(e1);
+            Expression LoopUB = Outerloop_range.getUB();
+
             if( VarProps_Map.get(SubArray) != null &&
                 VarProps_Map.get(SubArray).equals("STRICT_MONOTONIC"))
             {
                 Expression AggSubUB = ((RangeExpression)AggSubs_Map.get(SubArray)).getUB();
-                Expression LoopUB = Outerloop_range.getUB();
-
+                
                 if(Symbolic.subtract(AggSubUB, LoopUB).equals(new IntegerLiteral(1)))
                     return true;
 
@@ -799,8 +808,26 @@ public class RangeTest implements DDTest {
                 }
                 return true;
             }
-            else
+            else {
+                RangeDomain stmt_RD = RangeAnalysis.query(f_stmt);
+                Expression Array_value = stmt_RD.getRange(SubArray);
+                Expression Subscript = ((ArrayAccess)e1).getIndex(0);
+                Expression SubscriptRange = stmt_RD.getRange(SymbolTools.getSymbolOf(Subscript));
+                if(Array_value != null &&
+                    SubscriptRange.equals(Outerloop_range) && 
+                    Array_value instanceof RangeExpression)
+                    {
+                        Expression value_lb = ((RangeExpression)Array_value).getLB();
+                        Expression value_ub = ((RangeExpression)Array_value).getUB();
+                        
+                        if(value_lb instanceof IntegerLiteral && 
+                            value_ub instanceof IntegerLiteral &&
+                            stmt_RD.compare(value_lb, value_ub).isLT())
+                            return true;
+                    }
+                   
                 return false;
+            }
         }
         
         Loop innerloop = Innerloops.iterator().next();
@@ -854,15 +881,16 @@ public class RangeTest implements DDTest {
 
                     return true;
                 }
-                else
+                else{
                     return false;
+                }
 
             }
            
 
         }
            
-
+        
         return false;
 
 
@@ -892,6 +920,7 @@ public class RangeTest implements DDTest {
                 !SingleDimensional_SubscriptArrays(e2))
                     return false;
             
+        
         Map<Symbol, String> VarProps_Map = SubscriptedSubscriptAnalysis.getVariableProperties();
         ForLoop CurrentLoop = (ForLoop)loop;
 
@@ -978,13 +1007,64 @@ public class RangeTest implements DDTest {
            !LoopTools.isOutermostLoop(loop)) 
             return false;
 
+        
         List<ArrayAccess> SubscriptArrays_e1 = IRTools.getExpressionsOfType(e1, ArrayAccess.class);
         List<ArrayAccess> SubscriptArrays_e2 = IRTools.getExpressionsOfType(e2, ArrayAccess.class);
 
-        if(SubscriptArrays_e1.size()>1 || SubscriptArrays_e2.size()>1)
-            return false;
+        // System.out.println("f: " + f + ",g: " + g + "result = " + SubscriptArrays_e1.size() +"\n");
+        // if(SubscriptArrays_e1.size()>1 || SubscriptArrays_e2.size()>1)
+        //     return false;
         
-        //System.out.println("Loop: " + LoopTools.getIndexVariable(loop) +"\n");
+        Map<Symbol, String> VarProps_Map = SubscriptedSubscriptAnalysis.getVariableProperties();
+        ForLoop CurrentLoop = (ForLoop)loop;
+        Expression loop_stride = LoopTools.getIncrementExpression(CurrentLoop);
+    
+        Expression loopidx = LoopTools.getIndexVariable(CurrentLoop);
+        Expression f_current_iter = e1.clone();
+        Expression g_current_iter = e2.clone();
+
+        Expression g_nextiter = null;
+
+        DFIterator giter = new DFIterator<>(g_current_iter);
+        while(giter.hasNext()){
+
+            Object o = giter.next();
+
+            if(o instanceof Expression && 
+                ((Expression)o).equals(LoopTools.getIndexVariable(CurrentLoop))){
+
+                  o = Symbolic.add((Expression)o , loop_stride);
+
+                  g_nextiter = g.clone();
+                  IRTools.replaceAll(g_nextiter, LoopTools.getIndexVariable(CurrentLoop) , (Expression)o);
+            }
+        }
+        
+        Symbol f_symbol = SymbolTools.getSymbolOf(f_current_iter);
+        Symbol g_symbol = SymbolTools.getSymbolOf(g_nextiter);
+        
+        if(f_symbol.getArraySpecifiers() != null  &&
+            (g_symbol.getArraySpecifiers() != null) &&
+            (f_symbol.equals(g_symbol))){
+
+                ArrayAccess f_array_access = (ArrayAccess)f_current_iter;
+                String array_property = VarProps_Map.get(f_symbol);
+                if(array_property != null){
+                    String[] parts = array_property.split(":");
+                    String Monotonicity_type = parts[0];
+                    if(Monotonicity_type.equals("STRICT_MONOTONIC")){
+                        String property_dim = parts[1];
+                        int int_property_dim = Integer.parseInt(property_dim);
+                        if(f_array_access.getIndex(int_property_dim).equals(loopidx)){
+                            
+                            return true;
+                        }
+                    }
+                }
+                return false;
+        }
+
+
         return false;
 
     }
@@ -996,6 +1076,10 @@ public class RangeTest implements DDTest {
         Expression loop_lb = LoopTools.getLowerBoundExpression(loop);
         return new RangeExpression(loop_lb, loop_ub);
     }
+
+    //Determine if the subscript expression contains only 1D subscript arrays.
+    //This is required by rtest3 and rtest5 which operate specifically on 1D and
+    //multi-dimensional subscript arrays.
 
     private static boolean SingleDimensional_SubscriptArrays(Expression e){
 

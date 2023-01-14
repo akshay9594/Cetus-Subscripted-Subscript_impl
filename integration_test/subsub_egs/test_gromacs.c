@@ -1,5 +1,5 @@
 /*  
-    Subscripted Subscript example from Gromacs SPEC CPU 2006
+    Subscripted Subscript example from Gromacs - SPEC CPU 2006
 */
 
 // #include <stdio.h>

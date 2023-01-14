@@ -89,9 +89,16 @@ private static void wrapper(CFGraph SubroutineGraph){
     while(work_list.size() > 0){
 
 
+        
          // Get the first node in topological order from the work list.
         Integer node_num = work_list.firstKey();
         DFANode node = work_list.remove(node_num);
+
+        // if(node.getData("ir") != null)
+        // System.out.println("node: " + node.getData("ir") +"\n");
+        // else
+        // System.out.println("node: " + node.getData("tag")  +"\n");
+
          visits = node.getData("num-visits");     
         if (visits == null) {
             node.putData("num-visits", 1);
@@ -137,14 +144,15 @@ private static void wrapper(CFGraph SubroutineGraph){
             if (curr_ranges == null) {
                 curr_ranges = new RangeDomain(pred_range_out);
                
-            } else {        
+            } else {
+                   
                 curr_ranges.unionRanges(pred_range_out);
     
             }
-
+        
         }
 
-        
+
         /**
          * If a For loop is encountered, store the range values of variables before the loop,
          * initialize LVVs to lambda at the loop header node and then analyze the loop body.
@@ -795,7 +803,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
         //Collect information about multi-dimensional subscript arrays
         CollectMultiDimArrayInfo(LoopRangeExpressions);
     
-        System.out.println("\nResults of Phase 2 Analysis for "+ LoopIndexSymbol +"-loop: " +"\n");
+        //System.out.println("\nResults of Phase 2 Analysis for "+ LoopIndexSymbol +"-loop: " +"\n");
 
         //Collect info about the loop index symbol - aggregate range and property
         LoopIdxRange = (RangeExpression)LoopRangeExpressions.substituteForwardRange(LoopIdxRange);
@@ -993,8 +1001,8 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                             }
                             else
                                 AggregatedRangeExprs = LoopRangeExpressions.getRange(sym);
-                            System.out.println("LVV: " + sym + "\nclass: " + recurrence_class  + "\nAggregate subscript: " + Loop_agg_subscripts.get(sym) +
-                                                    "\nAggregate value range: " + AggregatedRangeExprs + "\nproperty: " + variable_property.get(sym) +"\n");
+                            // System.out.println("LVV: " + sym + "\nclass: " + recurrence_class  + "\nAggregate subscript: " + Loop_agg_subscripts.get(sym) +
+                            //                         "\nAggregate value range: " + AggregatedRangeExprs + "\nproperty: " + variable_property.get(sym) +"\n");
 
                         }
                         // else
@@ -1076,7 +1084,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                                                     List<Symbol>List_SSR_Vars, RangeDomain RangesBeforeLoop)
     {
 
-       // System.out.println("LVV: " + LVV + " ,value: " + ValueExpr + " ,arr def expr: " + ArrayDefExpr +"\n");
+    //System.out.println("LVV: " + LVV + " ,value: " + ValueExpr + " ,arr def expr: " + ArrayDefExpr +"\n");
        //Check if the LVV is a scalar or an array. 
        //Scalars can have only Class 1 recurrence
 
@@ -1292,6 +1300,8 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
 
     private static String evaluate_SSR_Var(Expression ValueExpr, Expression SSR_expr){
         
+        if(is_constant(ValueExpr))
+          return "Unknown Class";
 
         Expression remainder = null;
         if(ValueExpr instanceof RangeExpression){
@@ -1557,17 +1567,19 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
             LVV_Properties.add(variable_property.get(sym));
         }
 
+        String property = LVV_Properties.iterator().next();
         if(LVV_Properties.size() == 1 && !LVV.getArraySpecifiers().isEmpty() ){
             ArraySpecifier arr_specs = (ArraySpecifier)LVV.getArraySpecifiers().get(0);
+            
             if(arr_specs.getNumDimensions() == 1){
-                return LVV_Properties.iterator().next();
+                return property;
             }
             else if(arr_specs.getNumDimensions() > 1 && LoopTools.isOutermostLoop(inputForLoop)){
-                return (LVV_Properties.iterator().next()+":DIM_1");
+                return (property+":0");
             }
         }
      
-        return LVV_Properties.iterator().next();
+        return property;
        
     }
 

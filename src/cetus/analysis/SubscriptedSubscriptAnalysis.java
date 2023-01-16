@@ -1302,23 +1302,36 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
         }
         else
             remainder = Symbolic.subtract(ValueExpr, SSR_expr);
-        
-        if(SSR_expr!=null && !SSR_expr.getChildren().isEmpty() && (remainder instanceof RangeExpression)){
-            Literal coeff = (Literal)SSR_expr.getChildren().get(0);
-            
-            if((coeff instanceof IntegerLiteral) &&  
-                    Symbolic.gt(coeff, ((RangeExpression)remainder).getUB()).equals(new IntegerLiteral(1))){
+
+        List ssr_vars = IRTools.getExpressionsOfType(SSR_expr, IDExpression.class);
+
+        Identifier ssr_var = null;
+        if(ssr_vars.size() == 1){
+            ssr_var = (Identifier)ssr_vars.iterator().next();
+        }
+
+        if(SSR_expr !=null && ssr_var != null && is_PNN(remainder)){
+            Expression coeff = Symbolic.getCoefficient(SSR_expr, ssr_var);
+            if(remainder instanceof RangeExpression){
+                Expression remainder_ub = ((RangeExpression)remainder).getUB();
+                
+                if(Symbolic.gt(coeff, new IntegerLiteral(1)).equals(new IntegerLiteral(1)) &&
+                    Symbolic.ge(coeff, remainder_ub).equals(new IntegerLiteral(1))){
+                        return "Class 2";
+                }
+                else
+                return "Unknown Class";
+                
+            }
+            else if(Symbolic.eq(coeff, new IntegerLiteral(1)).equals(new IntegerLiteral(1))){
                 return "Class 2";
             }
             else
                 return "Unknown Class";
         }
-        else if( SSR_expr != null && (!(remainder instanceof ArrayAccess) && is_PNN(remainder))){
-
-                return "Class 2";
-        }
+        else
         return "Unknown Class";
-
+        
 
     }
 

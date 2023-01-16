@@ -24,9 +24,6 @@ public class SubscriptedSubscriptAnalysis extends AnalysisPass{
 
     private static Map<Symbol,Object> Loop_agg_subscripts = new HashMap<>();
 
-    private static Map<Symbol,Object> ConsolidatedSpec = new HashMap<>();
-
-    private static Expression control_expr = null;
 
     public SubscriptedSubscriptAnalysis(Program program){
         super(program);
@@ -842,20 +839,6 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                                 if_tag = simplified_tag;
                             SymbolTools.SetIfConditionTag(sym, if_tag);
                         }
-                        
-                        //Aggregate list of Value Expressions for a Multi-dimensional array.
-                        else if(SymbolTools.HasMultipleAccesses(sym))
-                        {
-            
-                            Expression simplified_expr = Unionize_MultiDimArrayExprs(sym, SymbolTools.getAssignedValues(sym),
-                                                        LoopRangeExpressions, SSR_variables,LoopIndexSymbol);
-                                    
-                            if(simplified_expr != null){
-                                LVV_Value_expr = simplified_expr;
-                                LoopRangeExpressions.multiDimRDclear();
-                                SymbolTools.clearAccesses();
-                            }
-                        }
 
                         //System.out.println("LVV: " + sym + " ,value: " + LVV_Value_expr +"\n");
                         //Identifying the recurrence class of the LVV
@@ -910,11 +893,6 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                                     LoopRangeExpressions.setRange(sym, re);
                                 }
                             break;
-                            // case "Class 2i":
-                            //     re = LoopRangeExpressions.substituteForwardRange(LVV_Value_expr);
-                            //     LoopRangeExpressions.setRange(sym, re);
-                            //     variable_property.put(sym, "STRICT_MONOTONIC");
-                            //     break;
                             case "Class 3":
                                 //Evaluate the PNN term
                                String property = eval_PNN(Class3_PNN_term);
@@ -932,15 +910,22 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                                     rd.unionRanges(RangeValsBeforeLoop);
                                      LoopRangeExpressions.setRange(sym, rd.getRange(sym));
                                }
+                                 //Aggregate list of Value Expressions for a Multi-dimensional array.
                                else if(arr_specs!=null && arr_specs.getNumDimensions() > 2){
-                                    LVV_Value_expr = LoopRangeExpressions.substituteForwardRange(LVV_Value_expr);
-                                    if(SymbolTools.getAssignedValues(sym) !=null){
-                                        StringLiteral value_lit = 
-                                            new StringLiteral(SymbolTools.getAssignedValues(sym).toString());
-                                        LVV_Value_expr = value_lit;
-                                        
+                                
+                                    if(SymbolTools.HasMultipleAccesses(sym))
+                                    {
+                        
+                                        Expression simplified_expr = Unionize_MultiDimArrayExprs(sym, SymbolTools.getAssignedValues(sym),
+                                                                    LoopRangeExpressions, SSR_variables,LoopIndexSymbol);
+                                                
+                                        if(simplified_expr != null){
+                                            LVV_Value_expr = simplified_expr;
+                                            LVV_Value_expr = LoopRangeExpressions.substituteForwardRange(LVV_Value_expr);
+                                            LoopRangeExpressions.multiDimRDclear();
+                                            SymbolTools.clearAccesses();
+                                        }
                                     }
-
                                     LoopRangeExpressions.setRange(sym, LVV_Value_expr);
                                }
                             //    else
@@ -995,12 +980,12 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                                 }
                                 
                             }
-                            Object AggregatedRangeExprs = null;
-                            if(SymbolTools.getAssignedValues(sym) != null){
-                                AggregatedRangeExprs = SymbolTools.getAssignedValues(sym);
-                            }
-                            else
-                                AggregatedRangeExprs = LoopRangeExpressions.getRange(sym);
+                            // Object AggregatedRangeExprs = null;
+                            // if(SymbolTools.getAssignedValues(sym) != null){
+                            //     AggregatedRangeExprs = SymbolTools.getAssignedValues(sym);
+                            // }
+                            // else
+                            //     AggregatedRangeExprs = LoopRangeExpressions.getRange(sym);
                             // System.out.println("LVV: " + sym + "\nclass: " + recurrence_class  + "\nAggregate subscript: " + Loop_agg_subscripts.get(sym) +
                             //                         "\nAggregate value range: " + AggregatedRangeExprs + "\nproperty: " + variable_property.get(sym) +"\n");
 
@@ -1028,13 +1013,14 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
          *    (c) Array Recurrence (Class 3)
          *    (From the paper - "From the ICS paper - On the automatic parallelization of subscripted
          *                         subscript patterns using array property analysis")
+         * 2. Multi-dimensional arrays and arrays with loop invariant subscripts are also supported
          * @param LVV       - The input LVV
          * @param ValueExpr - Phase 1 range expression of the LVV
          * @param LoopIndex - The loop index variable
          * @param ArraySubscriptExprs - Mapping of arrays to their respective subscript expressions
          * @param List_SSR_Vars - List of SSR variables
          * @return          - The recurrence class
-         * TODO : Support for array subscripts with loop invariant subscript expressions
+         * 
          */
     
     private static String identify_recurrence_class(Symbol LVV, Expression ValueExpr, Expression LoopIndex, Expression ArrayDefExpr,

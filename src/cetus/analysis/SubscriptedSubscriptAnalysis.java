@@ -878,7 +878,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                                 
                             break;
                             case "Class 2":
-                                Expression SSR_expr = Find_SSR_Var(LVV_Value_expr, SSR_variables);
+                                Expression SSR_expr = Find_SSR_expr(LVV_Value_expr, SSR_variables);
                                 String prop_type = Determine_Monotonicity_Type(sym, input_for_loop, 
                                                                 SymbolTools.getAccessedSymbols(SSR_expr));
                                 //check the property of the SSR variable
@@ -1063,13 +1063,13 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
             }
             else{
                 //Monotonic Range Assignment to a scalar variable
-                Expression SSR_expr = Find_SSR_Var(ValueExpr, List_SSR_Vars);
+                Expression SSR_expr = Find_SSR_expr(ValueExpr, List_SSR_Vars);
                 if(SSR_expr!=null && SSR_expr.equals(LoopIndex)){
                     Expression coeff = Symbolic.getCoefficient(ValueExpr,(Identifier)SSR_expr);
                     if(coeff!=null)
                        SSR_expr = Symbolic.multiply(SSR_expr, coeff);
 
-                    return evaluate_SSR_Var(ValueExpr, SSR_expr);
+                    return determine_Class2_recurr(ValueExpr, SSR_expr);
                     
                 }
                 
@@ -1080,44 +1080,55 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
         else{
 
 
-            Expression SSR_expr = Find_SSR_Var(ValueExpr,  List_SSR_Vars);
+            Expression SSR_expr = Find_SSR_expr(ValueExpr,  List_SSR_Vars);
             ArraySpecifier arr_specs = (ArraySpecifier)LVV.getArraySpecifiers().get(0);
            
-            //Test for a Multi-Dimensional Subscript Array
-            if(arr_specs.getNumDimensions() > 2 && !(ValueExpr instanceof StringLiteral)){
+            Expression SubscriptExp = null;
+            if(arr_specs.getNumDimensions() == 1){
+                List<Expression> Array_indices = ((ArrayAccess)ArrayDefExpr).getIndices();
+                SubscriptExp = Array_indices.remove(0);
+            }
+
+            //If SSR expression is not null, Class 2 recurrence possible, else Class 3
+            if(SSR_expr != null){
+
+                //Test for a Multi-Dimensional Subscript Array
+                if(arr_specs.getNumDimensions() > 2 && !(ValueExpr instanceof StringLiteral)){
              
-                return evaluate_SSR_Var(ValueExpr, SSR_expr);
+                    return determine_Class2_recurr(ValueExpr, SSR_expr);
                
-            }
-           
-
-            List<Expression> Array_indices = ((ArrayAccess)ArrayDefExpr).getIndices();
-
-            Expression SubscriptExp = Array_indices.remove(0);
-            
-            //An array can have class 2 recurrence if RHS is an SSR expression
-            //Monotonic Range Assignment to an array variable
-           
-            if( SSR_expr != null && is_simple_subscript(SubscriptExp, LoopIndex)){
-
-                return evaluate_SSR_Var(ValueExpr, SSR_expr);
-            }
-            //Check if the array is an intermittant sequence and then evaluate for a property
-            else if(SubscriptExp instanceof UnaryExpression){
-                UnaryExpression subexpr = (UnaryExpression)SubscriptExp;
-                Symbol ArraySymbol = SymbolTools.getSymbolOf((ArrayAccess)ArrayDefExpr);
-                Expression array_if_tag = SymbolTools.get_IfConditionTag(ArraySymbol);
-                Expression sub_if_tag = SymbolTools.get_IfConditionTag(SymbolTools.getSymbolOf(subexpr));
-
-                if(SSR_expr!=null && array_if_tag!=null && 
-                    sub_if_tag.equals(array_if_tag) &&
-                    IRTools.containsExpression(array_if_tag, LoopIndex) &&
-                    (subexpr.getOperator().equals(UnaryOperator.POST_INCREMENT)|| 
-                      subexpr.getOperator().equals(UnaryOperator.PRE_INCREMENT))){
-                    
-                    return evaluate_SSR_Var(ValueExpr, SSR_expr);
                 }
+                else{
+                  
+            
+                    //An array can have class 2 recurrence if RHS is an SSR expression
+                    //Monotonic Range Assignment to an array variable
+           
+                    if( SSR_expr != null && is_simple_subscript(SubscriptExp, LoopIndex)){
+
+                        return determine_Class2_recurr(ValueExpr, SSR_expr);
+                    }
+                    //Check if the array is an intermittant sequence and then evaluate for a property
+                    else if(SubscriptExp instanceof UnaryExpression){
+                        UnaryExpression subexpr = (UnaryExpression)SubscriptExp;
+                        Symbol ArraySymbol = SymbolTools.getSymbolOf((ArrayAccess)ArrayDefExpr);
+                        Expression array_if_tag = SymbolTools.get_IfConditionTag(ArraySymbol);
+                        Expression sub_if_tag = SymbolTools.get_IfConditionTag(SymbolTools.getSymbolOf(subexpr));
+
+                            if(SSR_expr!=null && array_if_tag!=null && 
+                                sub_if_tag.equals(array_if_tag) &&
+                                IRTools.containsExpression(array_if_tag, LoopIndex) &&
+                                (subexpr.getOperator().equals(UnaryOperator.POST_INCREMENT)|| 
+                                subexpr.getOperator().equals(UnaryOperator.PRE_INCREMENT))){
+                                
+                                return determine_Class2_recurr(ValueExpr, SSR_expr);
+                            }
+                    }
+                }
+           
+
             }
+            //Check for Class 3 Recurrence
             else if(SubscriptExp != null){
                 VariableDeclarator array_vd = (VariableDeclarator)LVV;
                 Expression array_idexpr = array_vd.getID().clone();
@@ -1153,7 +1164,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
     }
 
     //Returns the SSR variable in a value expression
-    private static Expression Find_SSR_Var(Expression ValueExpression, List<Symbol> SSR_variables){
+    private static Expression Find_SSR_expr(Expression ValueExpression, List<Symbol> SSR_variables){
 
         DFIterator<Expression> iter = new DFIterator<Expression>(ValueExpression, Expression.class);
 
@@ -1286,7 +1297,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
      * @return    - Appropriate Monotonicity type
      */
 
-    private static String evaluate_SSR_Var(Expression ValueExpr, Expression SSR_expr){
+    private static String determine_Class2_recurr(Expression ValueExpr, Expression SSR_expr){
         
         if(is_constant(ValueExpr))
           return "Unknown Class";

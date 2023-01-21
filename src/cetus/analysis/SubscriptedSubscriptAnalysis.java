@@ -180,9 +180,14 @@ private static void wrapper(CFGraph SubroutineGraph){
                   
                }
             
-               //System.out.println("loop: " + LoopTools.getLoopName(outermost_for_loop) +"\n");
+            //    System.out.println("loop: " + LoopTools.getLoopName(outermost_for_loop) +"\n");
 
+            //   Set<Symbol> Symbols =SymbolTools.getAccessedSymbols(outermost_for_loop);
          
+            //   for(Symbol sym : Symbols){
+            //     if(LoopTools.isPrivate(sym, outermost_for_loop))
+            //         System.out.print("priv sym: " + sym + "\n");
+            //   }
                 if(!IdentifySubSubLoop(Loops_in_Nest) &&
                    !ContainsUnsafeFunctionCalls(outermost_for_loop) &&
                    !LoopTools.containsBreakStatement(outermost_for_loop) && 
@@ -967,7 +972,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                                 
                             }
                         
-                            //System.out.println("LVV: " + sym + ", property: " + variable_property.get(sym) +"\n");
+                           //System.out.println("LVV: " + sym + ", property: " + variable_property.get(sym) + " , sub: " + Loop_agg_subscripts.get(sym) +"\n");
     
 
                         }
@@ -1538,21 +1543,13 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
 
     }
 
-    private static boolean LoopsInBody(LinkedList<Loop> LoopsInNest){
-
-        int i;
-        
-        for(i=0; i < LoopsInNest.size(); i++){
-            ForLoop l = (ForLoop)LoopsInNest.get(i);
-            //System.out.println("inner loop body contains loop: " + l.getBody() +"\n" );
-            if(!IRTools.getStatementsOfType(l.getBody(), ForLoop.class).isEmpty()){
-                return true;
-            }
-        }
-        
-        return false;
-    }
-
+    /**
+     * Checks if an input loop contains discontiguous inner loops or loops with
+     * inner loops that have statements after. It is used as an eligibility test
+     * for the analysis. Need to refine it and make it more general.
+     * @param loop
+     * @return
+     */
     private static boolean ContainsDiscontiguousInnerLoops(Loop loop){
 
         Statement stmt = loop.getBody();
@@ -1630,7 +1627,10 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
        
     }
 
-    //Collect information about Multi-Dimensional subscript arrays
+    /**
+     * Collect information about Multi-Dimensional subscript arrays
+     */
+    
     private static void CollectMultiDimArrayInfo(RangeDomain RangeExpressions, ForLoop loop)
     {
 
@@ -1640,7 +1640,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
         Set<Symbol> DefinedArray_Syms = new HashSet<>();
 
         List<IntegerLiteral> Integer_idx_vals = new ArrayList<>();
-        TreeSet<Expression> Expr_idx_vals = new TreeSet<>();
+        List<Expression> Expr_idx_vals = new ArrayList<>();
         List<ArrayAccess> arrs_to_remove = new ArrayList<>();
 
 
@@ -1676,12 +1676,12 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                         Integer_idx_vals.add((IntegerLiteral)idx);
                     }
                     else{
-                            Expr_idx_vals.add(idx);
+                      
+                            if(!Expr_idx_vals.contains(idx))
+                                Expr_idx_vals.add(idx);
                     }
                 }
             }
-              
-                List<Expression> SubExpressionRanges = new ArrayList<>(Expr_idx_vals.descendingSet());
     
                 //Correct aggregation w.r.t. index positions in the presence of integer index
                 //expressions.
@@ -1689,14 +1689,14 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                     Expression lb = Integer_idx_vals.get(0).clone();
                     Expression ub = Integer_idx_vals.get(Integer_idx_vals.size()-1).clone();
                     RangeExpression integer_range = new RangeExpression(lb,ub);
-                    SubExpressionRanges.add(Integer_idx.iterator().next(), integer_range);
+                    Expr_idx_vals.add(Integer_idx.iterator().next(), integer_range);
                 }
 
 
                 Symbol Defined_Array = DefinedArray_Syms.iterator().next();   
 
                 if(Loop_agg_subscripts.get(Defined_Array) == null){
-                    Loop_agg_subscripts.put(Defined_Array, SubExpressionRanges);
+                    Loop_agg_subscripts.put(Defined_Array, Expr_idx_vals);
                 }
 
                 SymbolTools.CollectArrayAccesses(Defined_Array,RangeExpressions.getMultiDimArrays());
@@ -1706,6 +1706,12 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
         
         return;
     }
+
+    /**
+     * Checks the presence of an infinite expression
+     * @param input_expr
+     * @return
+     */
 
     private static boolean CheckInfExpression(Expression input_expr){
 
@@ -1721,6 +1727,12 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
         return false;
     }
 
+
+    /**
+     * Checks if the input for loop contains function calls with side effects
+     * @param input_loop
+     * @return
+     */
     private static boolean ContainsUnsafeFunctionCalls(Loop input_loop){
         
         DFIterator<FunctionCall> iter =

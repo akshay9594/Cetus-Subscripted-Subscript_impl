@@ -416,7 +416,6 @@ public class ArrayPrivatization extends AnalysisPass {
         // ------------------------------
         // 2. Build CFG for the loop body
         // ------------------------------
-
         CFGraph g = buildLoopGraph();
         // -----------------------------------------
         // 3. Solve reaching definition at each node
@@ -436,7 +435,6 @@ public class ArrayPrivatization extends AnalysisPass {
         // Collect private variables
         collectPrivateSet(g);
         // Aggregate DEF set and USE set.
-        
         aggregateDef();
         aggregateUse();
     }
@@ -495,7 +493,6 @@ public class ArrayPrivatization extends AnalysisPass {
         if (debug >= 3) {
             PrintTools.printlnStatus(ret.toDot("range,ir,tag", 2), 3);
         }
-
         return ret;
     }
 
@@ -556,12 +553,6 @@ public class ArrayPrivatization extends AnalysisPass {
                     work_list.put((Integer)succ.getData("top-order"), succ);
                 }
             }
-
-            // if(node.getData("ir") != null)
-            //     System.out.println(" node: " + node.getData("ir")+ ", def-out: " + node.getData("def-out")  +"\n");
-            // else
-            //     System.out.println(" node: " + node.getData("tag")+ ", def-out: " + node.getData("def-out")+"\n");
-          
         }
     }
 
@@ -581,17 +572,10 @@ public class ArrayPrivatization extends AnalysisPass {
     *    entries for the variables
     */
     private void computeOutDef(DFANode node) {
-
-        // if(node.getData("ir") != null)
-        //         System.out.println(" node: " + node.getData("ir")  +"\n");
-        //     else
-        //         System.out.println(" node: " + node.getData("tag") +"\n");
-
         Section.MAP in = new Section.MAP(), out = null;
         RangeDomain rd = node.getData("range");
         Set<Symbol> killed_vars = new LinkedHashSet<Symbol>();
         Set<Symbol> pri_set = pri_map.get(current_loop);
-        
         if (node.getData("def-in") != null) {
             in = ((Section.MAP)node.getData("def-in")).clone();
         }
@@ -616,14 +600,12 @@ public class ArrayPrivatization extends AnalysisPass {
                 // Kill DEF section containing globals and actual parameters.
                 in.removeSideAffected(tr);
             }
-           
         }
         // Kill DEF section containing killed variables.
         in.removeAffected(killed_vars);
         // Candidate collection
         setPrivateCandidates(out);
         Section.MAP unioned = in.unionWith(out, rd);
-        //System.out.println( "def-out: " + unioned + "\n");
         node.putData("def-out", unioned);
     }
 
@@ -1170,7 +1152,6 @@ public class ArrayPrivatization extends AnalysisPass {
         Section.MAP may_set = new Section.MAP();
         Section.MAP defs = def_map.get(current_loop);
         Set<Symbol> vars = new LinkedHashSet<Symbol>(defs.keySet());
-       
         for (Symbol var : vars) {
             Set<Symbol> ivs = getInductionVariable();
             Section before = defs.get(var);

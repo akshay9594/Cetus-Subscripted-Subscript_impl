@@ -4,7 +4,7 @@
   Parallel Benchmarks (NPB 3.3)
 */
 
-//#include <stdio.h>
+  #include <stdio.h>
   #include <math.h>
   #include <stdlib.h>
  #include "header.h"
@@ -28,21 +28,16 @@ int main(){
 		xfrac[i]=((zgm1[i]*0.5)+0.5);
 	}
 
-  for (int isize=0; isize<6; isize ++ )
-	{
+  for (int isize=0; isize<6; isize ++ ){
 
-   temp = pow(2.0, (-isize-2));
+    temp = pow(2.0, (-isize-2));
     dtemp = 1.0/temp;
     temp1 = temp*temp*temp;
     temp2 = temp*temp;
-		for (k=0; k<5; k ++ )
-		{
-		
-			for (j=0; j<5; j ++ )
-			{
-				
+		for (k=0; k<5; k ++ ){
+			for (j=0; j<5; j ++ ){
 				for (i=0; i<5; i ++ )
-				{
+		    {
 					g1m1_s[isize][k][j][i]=(g1m1_s[isize][k][j][i]/wxm1[i]);
           g4m1_s[isize][k][j][i]=(g1m1_s[isize][k][j][i]/wxm1[i]);
 				

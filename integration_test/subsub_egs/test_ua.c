@@ -4,10 +4,10 @@
   Parallel Benchmarks (NPB 3.3)
 */
 
-#include <stdio.h>
-#include <math.h>
-#include <stdlib.h>
-#include "header.h"
+//#include <stdio.h>
+  #include <math.h>
+  #include <stdlib.h>
+ #include "header.h"
 
 int main(){
 
@@ -18,7 +18,38 @@ int main(){
   int ntemp, k;
   v_end[0] = 0;
   v_end[1] = LX1-1;
-  double * _param_r_init_a;
+ 
+   int i,j, k, ntemp, temp, dtemp, temp1,temp2;
+   int g1m1_s[6][5][5][5];
+   int g4m1_s[6][5][5][5];
+
+  for (i=0; i<5; i ++ )
+	{
+		xfrac[i]=((zgm1[i]*0.5)+0.5);
+	}
+
+  for (int isize=0; isize<6; isize ++ )
+	{
+
+   temp = pow(2.0, (-isize-2));
+    dtemp = 1.0/temp;
+    temp1 = temp*temp*temp;
+    temp2 = temp*temp;
+		for (k=0; k<5; k ++ )
+		{
+		
+			for (j=0; j<5; j ++ )
+			{
+				
+				for (i=0; i<5; i ++ )
+				{
+					g1m1_s[isize][k][j][i]=(g1m1_s[isize][k][j][i]/wxm1[i]);
+          g4m1_s[isize][k][j][i]=(g1m1_s[isize][k][j][i]/wxm1[i]);
+				
+				}
+			}
+		}
+	}
 
   for (k = 0; k < LELT; k++) {
     ntemp = k*LX1*LX1*LX1;
@@ -67,7 +98,8 @@ int main(){
       if (nnje == 2) {
         // nonconforming faces have four pieces of mortar, first map them to
         // two intermediate mortars, stored in tmp
-        //r_init(tmp, LX1*LX1*2, 0.0);
+        //r_init((double *)tmp, LX1*LX1*2, 0.0);
+
         for(int x=0; x<nnje; x++){
           for(int y=0; y< LX1; y++){
             for(int z =0; z<LX1; z++){
@@ -249,6 +281,7 @@ int main(){
 
 
  }
+
 
 
 void r_init(double a[], int n, double _const)

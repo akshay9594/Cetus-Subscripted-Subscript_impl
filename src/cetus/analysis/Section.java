@@ -977,7 +977,6 @@ public class Section extends ArrayList<Section.ELEMENT> implements Cloneable {
             for (Symbol var : vars) {
                 Section s1 = this.get(var);
                 Section s2 = other.get(var);
-
                 if (s1 == null && s2 == null) {
                     continue;
                 }

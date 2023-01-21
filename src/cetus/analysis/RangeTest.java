@@ -1004,7 +1004,7 @@ public class RangeTest implements DDTest {
         Map<Symbol, String> VarProps_Map = SubscriptedSubscriptAnalysis.getVariableProperties();
         Map<Symbol,Object> Agg_Subscripts = SubscriptedSubscriptAnalysis.getAggregateSubscripts();
         RangeExpression loop_range = getLoopRange((ForLoop)loop);
-
+        
         ForLoop CurrentLoop = (ForLoop)loop;
         Expression loop_stride = LoopTools.getIncrementExpression(CurrentLoop);
     

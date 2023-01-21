@@ -437,10 +437,12 @@ public class LoopTools {
                     pnest = (isPerfectNest((Loop)s));
                 else
                     pnest = false;
-            } else if (containsLoop(loop)) {
+            } 
+            else if (containsLoop(loop)) {
                 PrintTools.println("Loop is not perfectly nested", 8);
                 pnest = false;
-            } else {
+            }
+             else {
                 PrintTools.println("Loop is perfectly nested", 8);
                 pnest = true;
             }

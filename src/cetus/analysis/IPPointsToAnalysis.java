@@ -917,6 +917,7 @@ public class IPPointsToAnalysis extends IPAnalysis {
             PrintTools.printlnStatus(3, name, call_site);
             PrintTools.printlnStatus(3, name, "prev-call-in =", call_site.in());
             PrintTools.printlnStatus(3, name, "curr-call-in =", curr_data);
+            
             if (!call_site.in().equals(curr_data)) {
                 ret.add(call_site);
                 call_site.in(curr_data);

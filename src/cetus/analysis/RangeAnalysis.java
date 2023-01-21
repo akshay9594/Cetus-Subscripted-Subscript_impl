@@ -920,6 +920,7 @@ public class RangeAnalysis extends AnalysisPass
         // Side-effect node
         if (o instanceof Traversable) {
             Traversable t = (Traversable)o;
+         
             if (IRTools.containsClass(t, VaArgExpression.class)) {
                 updateUnsafeNode(node);
                 return;
@@ -928,10 +929,12 @@ public class RangeAnalysis extends AnalysisPass
                 if (ip_node == null) {
                     updateFunctionCall(node);
                 } else {
+                   
                     updateFunctionCallWithIPA(node);
                 }
                 return;
             }
+           
         }
 
         // Assignments
@@ -1413,6 +1416,7 @@ public class RangeAnalysis extends AnalysisPass
         boolean needs_subst = (
                 op == BinaryOperator.COMPARE_EQ ||
                 op == BinaryOperator.COMPARE_NE);
+       
        
         for (DFANode succ : node.getSuccs()) {
            

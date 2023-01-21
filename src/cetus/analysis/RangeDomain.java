@@ -175,6 +175,9 @@ public class RangeDomain implements Cloneable, Domain {
     public void removeRange(Symbol var) {
         ranges.remove(var);
     }
+    public void removeMultiDimRange(ArrayAccess var) {
+        multi_dimen_arr_ranges.remove(var);
+    }
 
     /**
     * Removes value ranges containing the specified variable including the range

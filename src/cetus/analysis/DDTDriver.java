@@ -104,6 +104,7 @@ public class DDTDriver extends AnalysisPass {
         // (DDArrayAccessInfo)
         HashMap<Symbol, ArrayList<DDArrayAccessInfo>> loopArrayAccessMap =
             new HashMap<Symbol, ArrayList<DDArrayAccessInfo>>();
+        
         // Collect loop information and array access information
         LinkedList<Loop> nest = LoopTools.calculateInnerLoopNest(loop);
         for (Loop l : nest) {
@@ -258,7 +259,8 @@ public class DDTDriver extends AnalysisPass {
                                     ((UnaryExpression)e).getExpression());
                         }
                     }
-                } else if (o instanceof ArrayAccess) {
+                } 
+                else if (o instanceof ArrayAccess) {
                     ArrayAccess acc = (ArrayAccess)o;
                     Statement stmt = acc.getStatement();
 
@@ -274,6 +276,9 @@ public class DDTDriver extends AnalysisPass {
                                 acc, DDArrayAccessInfo.write_type, loop, stmt);
                         addArrayAccess(arrayInfo, loopArrayAccessMap);
                     }
+                }
+                else{
+                   // System.out.println("DDTdriver pointer: " + o +"\n");
                 }
             }
         } else if (root instanceof IfStatement) {

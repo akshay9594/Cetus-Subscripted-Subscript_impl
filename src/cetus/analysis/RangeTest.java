@@ -185,7 +185,6 @@ public class RangeTest implements DDTest {
                       !IRTools.containsClass(f, FunctionCall.class) &&
                       !IRTools.containsClass(g, FunctionCall.class);
         
-        
         if(is_eligible && 
             IRTools.containsClass(f, ArrayAccess.class) &&
             IRTools.containsClass(g, ArrayAccess.class) &&
@@ -757,32 +756,37 @@ public class RangeTest implements DDTest {
                             Loop loop, 
                            Set<Loop> Innerloops){
 
-        
+       
+
         if(!SingleDimensional_SubscriptArrays(e1) ||
             !SingleDimensional_SubscriptArrays(e2))
                 return false;
 
         //System.out.println("f: " + e1 + ",g: " + e2 + "result = " + f_stmt +"\n");
         
-
         ForLoop Outerloop = (ForLoop)loop;
+        Procedure Loop_Proc = Outerloop.getProcedure();
         Expression OuterLoopstride =  LoopTools.getIncrementExpression(Outerloop);
         RangeExpression Outerloop_range = getLoopRange(Outerloop);
 
-        Map<Symbol, String> VarProps_Map = SubscriptedSubscriptAnalysis.getVariableProperties();
-        Map<Symbol,Object> AggSubs_Map =  SubscriptedSubscriptAnalysis.getAggregateSubscripts();
+        Map<Symbol, String> VarProps_Map = SubscriptedSubscriptAnalysis.getProcedureProps(Loop_Proc);
+        Map<Symbol,Object> AggSubs_Map =  SubscriptedSubscriptAnalysis.getProcedureSubRanges(Loop_Proc);
        
         String Outerloop_ant = (Outerloop.getAnnotation(PragmaAnnotation.class, "name")).toString();
     
         //To determine the value of symbolic upper bounds of the subscripted susbcript loop
-        RangeDomain RDCurrentLoop = SubscriptedSubscriptAnalysis.getAggregateRanges().get(Outerloop_ant);
+        RangeDomain RDCurrentLoop = SubscriptedSubscriptAnalysis.getProcedureAggRangeVals(Loop_Proc).get(Outerloop_ant);
+      
       
         if(RDCurrentLoop == null){
             return false;
         }
+      
 
         //Dependence testing for loop nests with irrelevant inner loop.
         //Normally observed for subscripted subscript loops involving intermittant sequences.
+      
+     
         if(Innerloops.size() == 0){
             Symbol SubArray = SymbolTools.getSymbolOf(e1);
             Expression LoopUB = Outerloop_range.getUB();
@@ -791,7 +795,7 @@ public class RangeTest implements DDTest {
                 VarProps_Map.get(SubArray).equals("STRICT_MONOTONIC"))
             {
                 Expression AggSubUB = ((RangeExpression)AggSubs_Map.get(SubArray)).getUB();
-                
+
                 return CheckPropertyAndLoopBounds(AggSubUB, LoopUB, Outerloop);
             }
             else {
@@ -862,10 +866,14 @@ public class RangeTest implements DDTest {
                 RangeExpression Subscript_range = 
                                     (RangeExpression)AggSubs_Map.get(SymbolTools.getSymbolOf(index_array));
 
-                if( property.equals("MONOTONIC") || property.equals("STRICT_MONOTONIC") &&
-                    Subscript_range.equals(Outerloop_range)){
+                
+                if( property != null){
+                    if(property.equals("MONOTONIC") || property.equals("STRICT_MONOTONIC") &&
+                            Subscript_range.equals(Outerloop_range))
 
-                    return true;
+                         return true;
+                    else 
+                        return false;
                 }
                 else{
                     return false;
@@ -907,15 +915,17 @@ public class RangeTest implements DDTest {
                     return false;
             
         
-        Map<Symbol, String> VarProps_Map = SubscriptedSubscriptAnalysis.getVariableProperties();
+       
         ForLoop CurrentLoop = (ForLoop)loop;
+        Procedure Loop_proc = CurrentLoop.getProcedure();
+        Map<Symbol, String> VarProps_Map = SubscriptedSubscriptAnalysis.getProcedureProps(Loop_proc);
 
         Expression Loopstride =  LoopTools.getIncrementExpression(CurrentLoop);
         Expression CurrentIter = LoopTools.getIndexVariable(CurrentLoop);
 
         //Getting the Aggregate range values for LVVs w.r.t current loop from SubSub Analysis pass
         String loop_ant = (CurrentLoop.getAnnotation(PragmaAnnotation.class, "name")).toString();
-        RangeDomain RDCurrentLoop = SubscriptedSubscriptAnalysis.getAggregateRanges().get(loop_ant);
+        RangeDomain RDCurrentLoop = SubscriptedSubscriptAnalysis.getProcedureAggRangeVals(Loop_proc).get(loop_ant);
 
         if(RDCurrentLoop == null){
             return false;
@@ -925,6 +935,9 @@ public class RangeTest implements DDTest {
         ArrayAccess index_array = IRTools.getDescendentsOfType(e1, ArrayAccess.class).get(0);
         Symbol index_array_name = SymbolTools.getSymbolOf(index_array.getArrayName());
         RangeExpression index_array_val = (RangeExpression)RDCurrentLoop.getRange(index_array_name);
+
+        if(index_array_val == null)
+            return false;
 
         List<IfStatement> Conditional_stmts = IRTools.getStatementsOfType(loop, IfStatement.class);
        
@@ -1001,11 +1014,14 @@ public class RangeTest implements DDTest {
         // if(SubscriptArrays_e1.size()>1 || SubscriptArrays_e2.size()>1)
         //     return false;
         
-        Map<Symbol, String> VarProps_Map = SubscriptedSubscriptAnalysis.getVariableProperties();
-        Map<Symbol,Object> Agg_Subscripts = SubscriptedSubscriptAnalysis.getAggregateSubscripts();
-        RangeExpression loop_range = getLoopRange((ForLoop)loop);
-        
+       
         ForLoop CurrentLoop = (ForLoop)loop;
+        Procedure Loop_Proc = CurrentLoop.getProcedure();
+        Map<Symbol, String> VarProps_Map = SubscriptedSubscriptAnalysis.getProcedureProps(Loop_Proc);
+        Map<Symbol,Object> Agg_Subscripts = SubscriptedSubscriptAnalysis.getProcedureSubRanges(Loop_Proc);
+        RangeExpression loop_range = getLoopRange(CurrentLoop);
+
+
         Expression loop_stride = LoopTools.getIncrementExpression(CurrentLoop);
     
         Expression loopidx = LoopTools.getIndexVariable(CurrentLoop);

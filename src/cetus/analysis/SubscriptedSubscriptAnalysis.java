@@ -16,11 +16,17 @@ public class SubscriptedSubscriptAnalysis extends AnalysisPass{
 
     private static Set<Symbol> Killed_symbols = new HashSet<>();
 
+
+    private static Map<IDExpression, Map<Symbol, String>> Procedure_Props_Info = new HashMap<>();
+    private static Map<IDExpression, Map<Symbol,Object>> Procedure_AggSubs_Info = new HashMap<>();
+    private static Map<IDExpression, Map<String, RangeDomain>> Procedure_AggRange_Info = new HashMap<>();
+
+
     private static Map<String, RangeDomain> Loop_agg_ranges = new HashMap<>();
 
-    private static Map<Symbol, String> variable_property = new HashMap<>();
+    private static Map<Symbol, String> variable_property;
 
-    private static Map<Symbol,Object> Loop_agg_subscripts = new HashMap<>();
+    private static Map<Symbol,Object> Loop_agg_subscripts;
 
 
     public SubscriptedSubscriptAnalysis(Program program){
@@ -46,9 +52,19 @@ public class SubscriptedSubscriptAnalysis extends AnalysisPass{
 
             CFGraph ProcedureGraph = new CFGraph(procedure);
 
+            variable_property = new HashMap<>();
+            Loop_agg_subscripts = new HashMap<>();
+            Loop_agg_ranges = new HashMap<>();
             wrapper(ProcedureGraph);
 
-           
+            // //Since the pass is not Interprocedural, delete entries which are not
+            // //global
+            //RemoveLocalSymbols(procedure);
+
+            Procedure_Props_Info.put(procedure.getName(), variable_property);
+            Procedure_AggSubs_Info.put(procedure.getName(), Loop_agg_subscripts);
+            Procedure_AggRange_Info.put(procedure.getName(), Loop_agg_ranges);
+            
         }
     
     }
@@ -63,7 +79,8 @@ public class SubscriptedSubscriptAnalysis extends AnalysisPass{
      * @param - Control Flow Graph of the subroutine
     */
 
-private static void wrapper(CFGraph SubroutineGraph){
+private void wrapper(CFGraph SubroutineGraph){
+
 
     normalizeCFG(SubroutineGraph);
     SubroutineGraph.topologicalSort(SubroutineGraph.getNodeWith("stmt", "ENTRY"));
@@ -87,10 +104,6 @@ private static void wrapper(CFGraph SubroutineGraph){
         Integer node_num = work_list.firstKey();
         DFANode node = work_list.remove(node_num);
 
-        // if(node.getData("ir") != null)
-        // System.out.println("node: " + node.getData("ir") +"\n");
-        // else
-        // System.out.println("node: " + node.getData("tag")  +"\n");
 
          visits = node.getData("num-visits");     
         if (visits == null) {
@@ -100,7 +113,12 @@ private static void wrapper(CFGraph SubroutineGraph){
             node.putData("num-visits", visits + 1);
         }
 
-        if((Integer)node.getData("num-visits") > 1){
+        // if(node.getData("ir") != null)
+        // System.out.println("node: " + node.getData("ir") + node.getData("num-visits") +"\n");
+        // else
+        // System.out.println("node: " + node.getData("tag") + node.getData("num-visits") + "\n");
+
+        if((Integer)node.getData("num-visits") > 2){
 
             node.putData("ranges", null);
 
@@ -115,6 +133,7 @@ private static void wrapper(CFGraph SubroutineGraph){
                 
                 if(successor.getData("num-visits") == null){
                     successor.putPredData(node, node.getData("ranges"));
+                    //if(!(node.getData("stmt") instanceof IfStatement))
                     work_list.put((Integer)successor.getData("top-order"), successor);
                     
                 }
@@ -180,14 +199,11 @@ private static void wrapper(CFGraph SubroutineGraph){
                   
                }
             
-            //    System.out.println("loop: " + LoopTools.getLoopName(outermost_for_loop) +"\n");
+            //System.out.println("loop: " + LoopTools.getLoopName(outermost_for_loop) + "," + discontInner +"\n");
 
             //   Set<Symbol> Symbols =SymbolTools.getAccessedSymbols(outermost_for_loop);
-         
-            //   for(Symbol sym : Symbols){
-            //     if(LoopTools.isPrivate(sym, outermost_for_loop))
-            //         System.out.print("priv sym: " + sym + "\n");
-            //   }
+        
+
                 if(!IdentifySubSubLoop(Loops_in_Nest) &&
                    !ContainsUnsafeFunctionCalls(outermost_for_loop) &&
                    !LoopTools.containsBreakStatement(outermost_for_loop) && 
@@ -600,6 +616,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                                 array_index = ((UnaryExpression)array_index).getExpression();
                                 List<Symbol> Symbol_List = Arrays.asList(LVV,SymbolTools.getSymbolOf(array_index)); 
                                 TagSymbolWithIfCond(Symbol_List,input_for_loop, access_expr);
+                                
                             }
                             ArraySubscriptMap.put( LVV , array_index); 
                             curr_ranges.setRange(LVV, expr);
@@ -812,21 +829,23 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                         // if(LVV_Value_expr.equals(new StringLiteral("bot")))
                         //   continue;
                         //Forward substitute tagged if-condition expressions
-                        if(SymbolTools.get_IfConditionTag(sym)!=null){
-                            Expression if_tag = SymbolTools.get_IfConditionTag(sym);
-                            Expression simplified_tag = LoopRangeExpressions.substituteForwardRange(if_tag);
-                            if(!CheckInfExpression(simplified_tag))
-                                if_tag = simplified_tag;
-                            SymbolTools.SetIfConditionTag(sym, if_tag);
-                        }
+                        // if(SymbolTools.get_IfConditionTag(sym)!=null){
+                        //     Expression if_tag = SymbolTools.get_IfConditionTag(sym);
+                        //     Expression simplified_tag = LoopRangeExpressions.substituteForwardRange(if_tag);
+                        //     if(!CheckInfExpression(simplified_tag))
+                        //         if_tag = simplified_tag;
+                        //     SymbolTools.SetIfConditionTag(sym, if_tag);
+                        // }
 
                         //System.out.println("LVV: " + sym + " ,value: " + LVV_Value_expr +"\n");
                         //Identifying the recurrence class of the LVV
                     
 
-                        String recurrence_class = identify_recurrence_class(sym, LVV_Value_expr , LoopIdx, DefSymbolExprs.get(sym),
+                        String recurrence_class = identify_recurrence_class(sym, LVV_Value_expr ,
+                                                                            LoopIdx, LoopVariantVars , DefSymbolExprs.get(sym),
                                                                             SSR_variables,RangeValsBeforeLoop);
 
+                      
                         switch(recurrence_class){
                             case "Class 1":
                                 SSR_variables.add(sym);
@@ -837,8 +856,11 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                                 aggregate_ub = Symbolic.multiply(increment_expression.getUB(), LoopIterationCount);
 
                                 //if the loop is outermost loop, add the value before the loop for scalars
+                                //System.out.println("inc expr: " + increment_expression + "," + RangeValsBeforeLoop +"\n");
+                                
                                 if(LoopTools.isOutermostLoop(input_for_loop) &&
-                                   (RangeValsBeforeLoop!=null)){
+                                   (RangeValsBeforeLoop!=null) 
+                                  ){
                                     ValueBeforeLoop = RangeValsBeforeLoop.getRange(sym);
                                     aggregate_lb = Symbolic.add(aggregate_lb, ValueBeforeLoop);
                                     aggregate_ub = Symbolic.add(aggregate_ub , ValueBeforeLoop);
@@ -862,7 +884,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                                 String prop_type = Determine_Monotonicity_Type(sym, input_for_loop, 
                                                                 SymbolTools.getAccessedSymbols(SSR_expr));
                                 //check the property of the SSR variable
-            
+        
                                 variable_property.put(sym, prop_type);
                                 
                                 if(sym.getArraySpecifiers().isEmpty())
@@ -927,27 +949,20 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                         }
 
                         //For an array, aggregate the subscript expression if it's a simple subscript
-                        if(arr_specs!=null){
+                        if(arr_specs!=null || SymbolTools.isPointer(sym)){
                            
                             Expression array_subscript = ArraySubscripts.get(sym);
+                            
                             RangeExpression agg_subscript = null;
 
-                            if(arr_specs.getNumDimensions()<=1){
+                            if(SymbolTools.isPointer(sym) ||
+                                SymbolTools.isArray(sym) && arr_specs.getNumDimensions()<=1){
 
                                 if(is_simple_subscript(array_subscript,LoopIdx)){
-                                    agg_subscript =  LoopIdxRange;
-                                    Object o = sym.getArraySpecifiers().get(0);
-                                    //Check if the entire length of the array is modified.
-                                    //If yes, then proceed with aggregation of the subscript.
-                                    if(o instanceof ArraySpecifier){
-                                        Expression arr_len = ((ArraySpecifier)o).getDimension(0);
-                                    if((Symbolic.add(agg_subscript.getUB(),agg_subscript.getStride())).equals(arr_len))
-                                            Loop_agg_subscripts.put(sym, agg_subscript);        
-                                    }
-                                    else {    
-                                        Loop_agg_subscripts.put(sym, new StringLiteral("bot"));
-                                    }                          
-                                    
+                                  
+                                     array_subscript = LoopRangeExpressions.substituteForwardRange(array_subscript);
+                                     Loop_agg_subscripts.put(sym, array_subscript);        
+                               
                                 }
                                 //Aggregation of subscript expression of an intermittent sequence
                                 else if(SymbolTools.get_IfConditionTag(sym) != null){
@@ -1005,7 +1020,9 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
          * 
          */
     
-    private static String identify_recurrence_class(Symbol LVV, Expression ValueExpr, Expression LoopIndex, Expression ArrayDefExpr,
+    private static String identify_recurrence_class(Symbol LVV, Expression ValueExpr, Expression LoopIndex, 
+                                                    Set<Symbol> LoopVariantVars,
+                                                    Expression DefExpr,
                                                     List<Symbol>List_SSR_Vars, RangeDomain RangesBeforeLoop)
     {
 
@@ -1013,14 +1030,15 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
        //Check if the LVV is a scalar or an array. 
        //Scalars can have only Class 1 recurrence
 
-
        if(ValueExpr instanceof StringLiteral)
                 return "Unknown Class";
 
-        if(LVV.getArraySpecifiers().isEmpty()||
-           ( !LVV.getArraySpecifiers().isEmpty() && 
+        if(!SymbolTools.isPointer(LVV) &&
+            !SymbolTools.isArray(LVV)||
+           (SymbolTools.isArray(LVV) && 
             IRTools.containsClass(ValueExpr, ArrayAccess.class) &&
-             !IRTools.containsExpression(ValueExpr, LoopIndex))){
+             !IRTools.containsExpression(ValueExpr, LoopIndex)))
+            {
 
             Expression idexpr = null;
             if(LVV.getArraySpecifiers().isEmpty()){
@@ -1028,7 +1046,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                 idexpr = (Expression)vd.getID();
             }
             else{
-                idexpr = ArrayDefExpr;
+                idexpr = DefExpr;
             }
         
             if(ValueExpr instanceof RangeExpression){
@@ -1061,28 +1079,42 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
         }
         else{
 
-
             Expression SSR_expr = Find_SSR_expr(ValueExpr,  List_SSR_Vars);
-            ArraySpecifier arr_specs = (ArraySpecifier)LVV.getArraySpecifiers().get(0);
-           
+            
+            int NumArrayIndices = 0;
             Expression SubscriptExp = null;
-            if(arr_specs.getNumDimensions() == 1){
-                List<Expression> Array_indices = ((ArrayAccess)ArrayDefExpr).getIndices();
-                SubscriptExp = Array_indices.remove(0);
-            }
+            ArraySpecifier arr_specs = null;
 
+            if(SymbolTools.isPointer(LVV)){
+                ArrayAccess Pointer_Array = (ArrayAccess)DefExpr;
+                NumArrayIndices = Pointer_Array.getNumIndices();
+                if(NumArrayIndices == 1){
+                    SubscriptExp = Pointer_Array.getIndex(0);
+                }
+                
+            }
+            else{
+
+                arr_specs = (ArraySpecifier)LVV.getArraySpecifiers().get(0);
+          
+                if(arr_specs.getNumDimensions() == 1){
+                    List<Expression> Array_indices = ((ArrayAccess)DefExpr).getIndices();
+                    SubscriptExp = Array_indices.remove(0);
+                }
+
+            }
+         
             //If SSR expression is not null, Class 2 recurrence possible, else Class 3
             if(SSR_expr != null){
 
                 //Test for a Multi-Dimensional Subscript Array
-                if(arr_specs.getNumDimensions() > 2 && !(ValueExpr instanceof StringLiteral)){
+                if(arr_specs !=null && arr_specs.getNumDimensions() > 2 && !(ValueExpr instanceof StringLiteral)){
              
                     return determine_Class2_recurr(ValueExpr, SSR_expr);
                
                 }
                 else{
                   
-            
                     //An array can have class 2 recurrence if RHS is an SSR expression
                     //Monotonic Range Assignment to an array variable
            
@@ -1093,13 +1125,13 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                     //Check if the array is an intermittant sequence and then evaluate for a property
                     else if(SubscriptExp instanceof UnaryExpression){
                         UnaryExpression subexpr = (UnaryExpression)SubscriptExp;
-                        Symbol ArraySymbol = SymbolTools.getSymbolOf((ArrayAccess)ArrayDefExpr);
+                        Symbol ArraySymbol = SymbolTools.getSymbolOf((ArrayAccess)DefExpr);
                         Expression array_if_tag = SymbolTools.get_IfConditionTag(ArraySymbol);
                         Expression sub_if_tag = SymbolTools.get_IfConditionTag(SymbolTools.getSymbolOf(subexpr));
 
                             if(SSR_expr!=null && array_if_tag!=null && 
                                 sub_if_tag.equals(array_if_tag) &&
-                                IRTools.containsExpression(array_if_tag, LoopIndex) &&
+                                is_LoopVariant(array_if_tag, LoopVariantVars) &&
                                 (subexpr.getOperator().equals(UnaryOperator.POST_INCREMENT)|| 
                                 subexpr.getOperator().equals(UnaryOperator.PRE_INCREMENT))){
                                 
@@ -1747,6 +1779,50 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
 
     }
 
+    /**
+     * Since the pass is intraprocedural, variable properties and
+     * aggregated expressions cannot exists outside of procedure
+     * boundaries. Therefore, if the Def and Use of a subscript array
+     * is NOT within the same procedure or if the Array is NOT a
+     * Gloablly defined array, discard the entry.
+     * @param Proc
+     */
+    private static void RemoveLocalSymbols(Procedure Proc){
+
+        Set<Symbol> Proc_Use_Set = DataFlowTools.getUseSymbolMap(Proc).keySet();
+
+        Iterator<Symbol> iterator = variable_property.keySet().iterator();
+
+        List<Symbol> Symbols_to_Remove = new ArrayList<>();
+
+        
+        while (iterator.hasNext()) {
+            Symbol Candidate_Sym = iterator.next();
+          
+            if(!Proc_Use_Set.contains(Candidate_Sym) &&
+                !SymbolTools.isGlobal(Candidate_Sym)){
+                Symbols_to_Remove.add(Candidate_Sym);
+                iterator.remove();
+            }
+        }
+
+        for(Symbol sym: Symbols_to_Remove){
+            Loop_agg_subscripts.remove(sym);
+        }
+        
+
+    }
+
+    private static boolean is_LoopVariant(Expression expr, Set<Symbol> Def_Syms){
+        
+        Set<Symbol> accessed_syms = SymbolTools.getAccessedSymbols(expr);
+
+        for(Symbol acc_sym : accessed_syms){
+            if(Def_Syms.contains(acc_sym))
+                return true;
+        }
+        return false;
+    }
 
      /**
     * Normalizes the graph so that each node does not have an assignment
@@ -1837,18 +1913,16 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
         } while (last != node);
     }
 
-    public static Map<String, RangeDomain> getAggregateRanges(){
-        return Loop_agg_ranges;
+    public static Map<Symbol, String> getProcedureProps(Procedure proc){
+        return Procedure_Props_Info.get(proc.getName());
     }
 
-    public static Map<Symbol, String> getVariableProperties(){
-        return variable_property;
+    public static Map<Symbol, Object> getProcedureSubRanges(Procedure proc){
+        return Procedure_AggSubs_Info.get(proc.getName());
     }
 
-    public static Map<Symbol, Object> getAggregateSubscripts(){
-
-        return Loop_agg_subscripts;
-
+    public static Map<String, RangeDomain> getProcedureAggRangeVals(Procedure proc){
+        return Procedure_AggRange_Info.get(proc.getName());
     }
  
 

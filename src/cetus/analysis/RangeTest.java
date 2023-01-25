@@ -775,6 +775,9 @@ public class RangeTest implements DDTest {
         String Outerloop_ant = (Outerloop.getAnnotation(PragmaAnnotation.class, "name")).toString();
     
         //To determine the value of symbolic upper bounds of the subscripted susbcript loop
+    
+        if(SubscriptedSubscriptAnalysis.getProcedureAggRangeVals(Loop_Proc) == null)
+          return false;
         RangeDomain RDCurrentLoop = SubscriptedSubscriptAnalysis.getProcedureAggRangeVals(Loop_Proc).get(Outerloop_ant);
       
       
@@ -782,7 +785,6 @@ public class RangeTest implements DDTest {
             return false;
         }
       
-
         //Dependence testing for loop nests with irrelevant inner loop.
         //Normally observed for subscripted subscript loops involving intermittant sequences.
       

@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "headers.h": "c",
+        "seq_mv.h": "c",
+        "omp.h": "c"
+    }
+}

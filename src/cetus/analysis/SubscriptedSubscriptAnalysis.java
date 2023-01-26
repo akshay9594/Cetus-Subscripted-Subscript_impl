@@ -24,9 +24,9 @@ public class SubscriptedSubscriptAnalysis extends AnalysisPass{
 
     private static Map<String, RangeDomain> Loop_agg_ranges = new HashMap<>();
 
-    private static Map<Symbol, String> variable_property;
+    private static Map<Symbol, String> variable_property = new HashMap<>();
 
-    private static Map<Symbol,Object> Loop_agg_subscripts;
+    private static Map<Symbol,Object> Loop_agg_subscripts = new HashMap<>();
 
 
     public SubscriptedSubscriptAnalysis(Program program){
@@ -55,15 +55,20 @@ public class SubscriptedSubscriptAnalysis extends AnalysisPass{
             variable_property = new HashMap<>();
             Loop_agg_subscripts = new HashMap<>();
             Loop_agg_ranges = new HashMap<>();
+
             wrapper(ProcedureGraph);
+
 
             // //Since the pass is not Interprocedural, delete entries which are not
             // //global
-            //RemoveLocalSymbols(procedure);
 
+           
             Procedure_Props_Info.put(procedure.getName(), variable_property);
             Procedure_AggSubs_Info.put(procedure.getName(), Loop_agg_subscripts);
             Procedure_AggRange_Info.put(procedure.getName(), Loop_agg_ranges);
+            
+
+            //System.out.println( "proc: " + procedure.getName()+ ", proc props: " + Procedure_Props_Info +"\n");
             
         }
     
@@ -667,7 +672,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                         if(!sym_specs.isEmpty() && sym_specs.get(0).getNumDimensions()>1){
                             exp = curr_ranges.substituteForwardRange(exp);
                         }
-                       // exp = curr_ranges.substituteForwardRange(exp);
+                       exp = curr_ranges.substituteForwardRange(exp);
                         curr_ranges.setRange(sym, exp);
                     }
 
@@ -1779,39 +1784,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
 
     }
 
-    /**
-     * Since the pass is intraprocedural, variable properties and
-     * aggregated expressions cannot exists outside of procedure
-     * boundaries. Therefore, if the Def and Use of a subscript array
-     * is NOT within the same procedure or if the Array is NOT a
-     * Gloablly defined array, discard the entry.
-     * @param Proc
-     */
-    private static void RemoveLocalSymbols(Procedure Proc){
-
-        Set<Symbol> Proc_Use_Set = DataFlowTools.getUseSymbolMap(Proc).keySet();
-
-        Iterator<Symbol> iterator = variable_property.keySet().iterator();
-
-        List<Symbol> Symbols_to_Remove = new ArrayList<>();
-
-        
-        while (iterator.hasNext()) {
-            Symbol Candidate_Sym = iterator.next();
-          
-            if(!Proc_Use_Set.contains(Candidate_Sym) &&
-                !SymbolTools.isGlobal(Candidate_Sym)){
-                Symbols_to_Remove.add(Candidate_Sym);
-                iterator.remove();
-            }
-        }
-
-        for(Symbol sym: Symbols_to_Remove){
-            Loop_agg_subscripts.remove(sym);
-        }
-        
-
-    }
+   
 
     private static boolean is_LoopVariant(Expression expr, Set<Symbol> Def_Syms){
         

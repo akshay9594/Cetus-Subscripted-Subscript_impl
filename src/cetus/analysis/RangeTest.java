@@ -927,6 +927,10 @@ public class RangeTest implements DDTest {
 
         //Getting the Aggregate range values for LVVs w.r.t current loop from SubSub Analysis pass
         String loop_ant = (CurrentLoop.getAnnotation(PragmaAnnotation.class, "name")).toString();
+
+        if(SubscriptedSubscriptAnalysis.getProcedureAggRangeVals(Loop_proc) == null)
+        return false;
+
         RangeDomain RDCurrentLoop = SubscriptedSubscriptAnalysis.getProcedureAggRangeVals(Loop_proc).get(loop_ant);
 
         if(RDCurrentLoop == null){
@@ -1023,7 +1027,9 @@ public class RangeTest implements DDTest {
         Map<Symbol,Object> Agg_Subscripts = SubscriptedSubscriptAnalysis.getProcedureSubRanges(Loop_Proc);
         RangeExpression loop_range = getLoopRange(CurrentLoop);
 
-
+        if(VarProps_Map == null)
+            return false;
+            
         Expression loop_stride = LoopTools.getIncrementExpression(CurrentLoop);
     
         Expression loopidx = LoopTools.getIndexVariable(CurrentLoop);

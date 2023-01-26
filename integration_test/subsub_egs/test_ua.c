@@ -15,7 +15,7 @@ int main(){
   double tmor[LELT], tx[LELT];
   int ig1, ig2, ig3, ig4, ie, iface, il1, il2, il3, il4;
   int nnje, ije1, ije2, col, i, j, ig, il;
-  int ntemp, k;
+  int k;
   v_end[0] = 0;
   v_end[1] = LX1-1;
  
@@ -46,20 +46,7 @@ int main(){
 		}
 	}
 
-  for (k = 0; k < LELT; k++) {
-    ntemp = k*LX1*LX1*LX1;
-    for (j = 0; j < LX1; j++) {
-      for (i = 0; i < LX1; i++) {
-        idel[k][0][j][i] = ntemp+i*LX1 + j*LX1*LX1+LX1 - 1;
-        idel[k][1][j][i] = ntemp+i*LX1 + j*LX1*LX1;
-        idel[k][2][j][i] = ntemp+i*1 + j*LX1*LX1+LX1*(LX1-1);
-        idel[k][3][j][i] = ntemp+i*1 + j*LX1*LX1;
-        idel[k][4][j][i] = ntemp+i*1 + j*LX1+LX1*LX1*(LX1-1);
-        idel[k][5][j][i] = ntemp+i*1 + j*LX1;
-      }
-    }
-  }
-
+ 
  
   for (ie = 0; ie < nelt; ie++) {
     for (iface = 0; iface < NSIDES; iface++) {
@@ -276,7 +263,27 @@ int main(){
 
 
  }
+  
+  void init(){
 
+  int i,j,k, ntemp;
+
+     for (k = 0; k < LELT; k++) {
+    ntemp = k*LX1*LX1*LX1;
+    for (j = 0; j < LX1; j++) {
+      for (i = 0; i < LX1; i++) {
+        idel[k][0][j][i] = ntemp+i*LX1 + j*LX1*LX1+LX1 - 1;
+        idel[k][1][j][i] = ntemp+i*LX1 + j*LX1*LX1;
+        idel[k][2][j][i] = ntemp+i*1 + j*LX1*LX1+LX1*(LX1-1);
+        idel[k][3][j][i] = ntemp+i*1 + j*LX1*LX1;
+        idel[k][4][j][i] = ntemp+i*1 + j*LX1+LX1*LX1*(LX1-1);
+        idel[k][5][j][i] = ntemp+i*1 + j*LX1;
+      }
+    }
+  }
+
+
+  }
 
 
 void r_init(double a[], int n, double _const)

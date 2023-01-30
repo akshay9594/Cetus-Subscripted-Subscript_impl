@@ -42,6 +42,8 @@ public class SubscriptedSubscriptAnalysis extends AnalysisPass{
 
         LoopTools.addLoopName(program);
 
+        ProcInfo proc_info = new ProcInfo();
+
         DFIterator<Procedure> iter =
                 new DFIterator<Procedure>(program, Procedure.class);
         iter.pruneOn(Procedure.class);
@@ -62,11 +64,9 @@ public class SubscriptedSubscriptAnalysis extends AnalysisPass{
             // //Since the pass is not Interprocedural, delete entries which are not
             // //global
 
-           
-            Procedure_Props_Info.put(procedure.getName(), variable_property);
-            Procedure_AggSubs_Info.put(procedure.getName(), Loop_agg_subscripts);
-            Procedure_AggRange_Info.put(procedure.getName(), Loop_agg_ranges);
-            
+            proc_info.setProcedureProps(procedure, variable_property);
+            proc_info.setProcedureSubRanges(procedure, Loop_agg_subscripts);
+            proc_info.setProcedureAggRangeVals(procedure, Loop_agg_ranges);
 
             //System.out.println( "proc: " + procedure.getName()+ ", proc props: " + Procedure_Props_Info +"\n");
             
@@ -805,14 +805,13 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
         //Collect information about multi-dimensional subscript arrays
         CollectMultiDimArrayInfo(LoopRangeExpressions, input_for_loop);
     
-        //System.out.println("\nResults of Phase 2 Analysis for "+ LoopIndexSymbol +"-loop: " +"\n");
+       // System.out.println("\nResults of Phase 2 Analysis for "+ LoopIndexSymbol +"-loop: " +"\n");
 
         //Collect info about the loop index symbol - aggregate range and property
         LoopIdxRange = (RangeExpression)LoopRangeExpressions.substituteForwardRange(LoopIdxRange);
         LoopRangeExpressions.setRange(LoopIndexSymbol, LoopIdxRange);
         SSR_variables.add(LoopIndexSymbol);
         variable_property.put(LoopIndexSymbol, "STRICT_MONOTONIC");
-
 
         List<Symbol> Symbols_to_analyze = new ArrayList<>(LoopRangeExpressions.getSymbols());
 
@@ -831,18 +830,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                         if(!sym.getArraySpecifiers().isEmpty())
                             arr_specs = (ArraySpecifier)sym.getArraySpecifiers().get(0);
 
-                        // if(LVV_Value_expr.equals(new StringLiteral("bot")))
-                        //   continue;
-                        //Forward substitute tagged if-condition expressions
-                        // if(SymbolTools.get_IfConditionTag(sym)!=null){
-                        //     Expression if_tag = SymbolTools.get_IfConditionTag(sym);
-                        //     Expression simplified_tag = LoopRangeExpressions.substituteForwardRange(if_tag);
-                        //     if(!CheckInfExpression(simplified_tag))
-                        //         if_tag = simplified_tag;
-                        //     SymbolTools.SetIfConditionTag(sym, if_tag);
-                        // }
-
-                        //System.out.println("LVV: " + sym + " ,value: " + LVV_Value_expr +"\n");
+                     
                         //Identifying the recurrence class of the LVV
                     
 
@@ -992,8 +980,13 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                                 
                             }
                         
-                           //System.out.println("LVV: " + sym + ", property: " + variable_property.get(sym) + " , sub: " + Loop_agg_subscripts.get(sym) +"\n");
-    
+                        // if(SymbolTools.getAssignedValues(sym)!=null)
+                        //    System.out.println("LVV: " + sym + "\nValues:" + SymbolTools.getAssignedValues(sym) + "\nproperty: " +
+                        //                  variable_property.get(sym) + "\nsub: " + Loop_agg_subscripts.get(sym) +"\n");
+
+                        // else
+                        // System.out.println("LVV: " + sym + "\nValues:" + LoopRangeExpressions.getRange(sym) + "\nproperty: " +
+                        //                     variable_property.get(sym) + "\nsub: " + Loop_agg_subscripts.get(sym) +"\n");
 
                         }
 

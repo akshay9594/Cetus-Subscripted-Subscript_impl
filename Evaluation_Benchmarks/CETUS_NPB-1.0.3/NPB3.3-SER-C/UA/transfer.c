@@ -52,6 +52,7 @@ void transf(double tmor[], double tx[])
   v_end[1] = LX1-1;
 
  if(count_init_transf == 0){
+
     for (iel = 0; iel < LELT; iel++) {
       ntemp = LX1*LX1*LX1*iel;
       for (j = 0; j < LX1; j++) {

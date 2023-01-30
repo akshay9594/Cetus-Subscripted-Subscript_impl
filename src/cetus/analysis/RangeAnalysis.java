@@ -1567,6 +1567,18 @@ public class RangeAnalysis extends AnalysisPass
         return ret;
     }
 
+    public static Map query(ForLoop loop, String info_type){
+
+        Procedure Loop_Proc = loop.getProcedure();
+
+        if(info_type.equals("Properties"))
+            return ProcInfo.getProcedureProps(Loop_Proc);
+        else if (info_type.equals("Aggregate Subscripts"))
+            return ProcInfo.getProcedureSubRanges(Loop_Proc);
+        else
+            return ProcInfo.getProcedureAggRangeVals(Loop_Proc);
+    }
+
     /**
     * Invalidates range domains stored in the static spaces. Every IR-changing
     * passes need to call this method.

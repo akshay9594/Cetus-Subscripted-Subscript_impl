@@ -769,18 +769,18 @@ public class RangeTest implements DDTest {
         Expression OuterLoopstride =  LoopTools.getIncrementExpression(Outerloop);
         RangeExpression Outerloop_range = getLoopRange(Outerloop);
 
-        Map<Symbol, String> VarProps_Map = SubscriptedSubscriptAnalysis.getProcedureProps(Loop_Proc);
-        Map<Symbol,Object> AggSubs_Map =  SubscriptedSubscriptAnalysis.getProcedureSubRanges(Loop_Proc);
+        Map<Symbol, String> VarProps_Map = RangeAnalysis.query(Outerloop, "Properties");
+        Map<Symbol,Object> AggSubs_Map =  RangeAnalysis.query(Outerloop, "Aggregate Subscripts");
        
         String Outerloop_ant = (Outerloop.getAnnotation(PragmaAnnotation.class, "name")).toString();
     
+        Map<String,RangeDomain> Aggregate_Ranges = RangeAnalysis.query(Outerloop, "Aggregate Ranges");
         //To determine the value of symbolic upper bounds of the subscripted susbcript loop
     
-        if(SubscriptedSubscriptAnalysis.getProcedureAggRangeVals(Loop_Proc) == null)
+        if(Aggregate_Ranges == null)
           return false;
-        RangeDomain RDCurrentLoop = SubscriptedSubscriptAnalysis.getProcedureAggRangeVals(Loop_Proc).get(Outerloop_ant);
       
-      
+        RangeDomain RDCurrentLoop = Aggregate_Ranges.get(Outerloop_ant);
         if(RDCurrentLoop == null){
             return false;
         }
@@ -916,11 +916,10 @@ public class RangeTest implements DDTest {
                 !SingleDimensional_SubscriptArrays(e2))
                     return false;
             
-        
+                    
        
         ForLoop CurrentLoop = (ForLoop)loop;
-        Procedure Loop_proc = CurrentLoop.getProcedure();
-        Map<Symbol, String> VarProps_Map = SubscriptedSubscriptAnalysis.getProcedureProps(Loop_proc);
+        Map<Symbol, String> VarProps_Map = RangeAnalysis.query(CurrentLoop, "Properties");
 
         Expression Loopstride =  LoopTools.getIncrementExpression(CurrentLoop);
         Expression CurrentIter = LoopTools.getIndexVariable(CurrentLoop);
@@ -928,10 +927,12 @@ public class RangeTest implements DDTest {
         //Getting the Aggregate range values for LVVs w.r.t current loop from SubSub Analysis pass
         String loop_ant = (CurrentLoop.getAnnotation(PragmaAnnotation.class, "name")).toString();
 
-        if(SubscriptedSubscriptAnalysis.getProcedureAggRangeVals(Loop_proc) == null)
+        Map<String,RangeDomain> Aggregate_Ranges = RangeAnalysis.query(CurrentLoop, "Aggregate Ranges");
+
+        if(Aggregate_Ranges == null)
         return false;
 
-        RangeDomain RDCurrentLoop = SubscriptedSubscriptAnalysis.getProcedureAggRangeVals(Loop_proc).get(loop_ant);
+        RangeDomain RDCurrentLoop = Aggregate_Ranges.get(loop_ant);
 
         if(RDCurrentLoop == null){
             return false;
@@ -1023,8 +1024,8 @@ public class RangeTest implements DDTest {
        
         ForLoop CurrentLoop = (ForLoop)loop;
         Procedure Loop_Proc = CurrentLoop.getProcedure();
-        Map<Symbol, String> VarProps_Map = SubscriptedSubscriptAnalysis.getProcedureProps(Loop_Proc);
-        Map<Symbol,Object> Agg_Subscripts = SubscriptedSubscriptAnalysis.getProcedureSubRanges(Loop_Proc);
+        Map<Symbol, String> VarProps_Map = RangeAnalysis.query(CurrentLoop, "Properties");
+        Map<Symbol,Object> Agg_Subscripts = RangeAnalysis.query(CurrentLoop, "Aggregate Subscripts");
         RangeExpression loop_range = getLoopRange(CurrentLoop);
 
         if(VarProps_Map == null)

@@ -16,12 +16,6 @@ public class SubscriptedSubscriptAnalysis extends AnalysisPass{
 
     private static Set<Symbol> Killed_symbols = new HashSet<>();
 
-
-    private static Map<IDExpression, Map<Symbol, String>> Procedure_Props_Info = new HashMap<>();
-    private static Map<IDExpression, Map<Symbol,Object>> Procedure_AggSubs_Info = new HashMap<>();
-    private static Map<IDExpression, Map<String, RangeDomain>> Procedure_AggRange_Info = new HashMap<>();
-
-
     private static Map<String, RangeDomain> Loop_agg_ranges = new HashMap<>();
 
     private static Map<Symbol, String> variable_property = new HashMap<>();
@@ -1877,18 +1871,6 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
             CFG.removeNode(node);
             --i;
         } while (last != node);
-    }
-
-    public static Map<Symbol, String> getProcedureProps(Procedure proc){
-        return Procedure_Props_Info.get(proc.getName());
-    }
-
-    public static Map<Symbol, Object> getProcedureSubRanges(Procedure proc){
-        return Procedure_AggSubs_Info.get(proc.getName());
-    }
-
-    public static Map<String, RangeDomain> getProcedureAggRangeVals(Procedure proc){
-        return Procedure_AggRange_Info.get(proc.getName());
     }
  
 

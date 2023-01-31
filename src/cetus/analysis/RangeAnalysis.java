@@ -1567,12 +1567,22 @@ public class RangeAnalysis extends AnalysisPass
         return ret;
     }
 
+    /**
+     * Querying Range Analysis for information about Subscript arrays.
+     * It returns the properties, aggregated subscripts and aggregated
+     * range expressions for subscript arrays on a per procedure basis.
+     * @param loop
+     * @param info_type
+     * @return
+     */
+
     public static Map query(ForLoop loop, String info_type){
 
         Procedure Loop_Proc = loop.getProcedure();
 
-        if(info_type.equals("Properties"))
+        if(info_type.equals("Properties")){
             return ProcInfo.getProcedureProps(Loop_Proc);
+        }
         else if (info_type.equals("Aggregate Subscripts"))
             return ProcInfo.getProcedureSubRanges(Loop_Proc);
         else

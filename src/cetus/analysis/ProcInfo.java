@@ -30,14 +30,22 @@ public class ProcInfo {
     }
 
     public static Map<Symbol, String> getProcedureProps(Procedure proc){
+        if(Procedure_Props_Info == null)
+            return new HashMap<>();
+        else
         return Procedure_Props_Info.get(proc.getName());
     }
 
     public static Map<Symbol, Object> getProcedureSubRanges(Procedure proc){
+        if(Procedure_AggSubs_Info == null)
+        return new HashMap<>();
+        else
         return Procedure_AggSubs_Info.get(proc.getName());
     }
 
     public static Map<String, RangeDomain> getProcedureAggRangeVals(Procedure proc){
+        if(Procedure_AggRange_Info == null)
+        return new HashMap<>();
         return Procedure_AggRange_Info.get(proc.getName());
     }
     

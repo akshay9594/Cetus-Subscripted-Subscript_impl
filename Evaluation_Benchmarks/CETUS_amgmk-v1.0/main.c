@@ -19,6 +19,7 @@
 //
 const int testIter   = 500;
 double totalWallTime = 0.0;
+ double total_target_loop_time = 0.0;
 // 
 void test_Matvec();
 void test_Relax();
@@ -53,6 +54,7 @@ int main(int argc, char *argv[])
 
   // Matvec
   totalWallTime = 0.0;
+  total_target_loop_time = 0.0;
  
   test_Matvec();
 
@@ -64,6 +66,7 @@ int main(int argc, char *argv[])
   printf("//------------ \n");
 
   printf("\nWall time = %f seconds. \n", totalWallTime);
+   printf("Target loop time=%f seconds\n", total_target_loop_time);
 
 
   // // Relax
@@ -95,11 +98,11 @@ int main(int argc, char *argv[])
 
   // printf("\nWall time = %f seconds. \n", totalWallTime);
 
-  t1 = omp_get_wtime();;
+  // t1 = omp_get_wtime();;
 
-   del_wtime = t1 - t0;
+  //  del_wtime = t1 - t0;
 
-  printf("\nTotal Wall time = %f seconds. \n", del_wtime);
+  // printf("\nTotal Wall time = %f seconds. \n", del_wtime);
 
 
   return  0;
@@ -120,9 +123,9 @@ void test_Matvec()
 
   double time_array[500] = {0.0};
 
-  nx = 75;  /* size per proc nx*ny*nz */
-  ny = 75;
-  nz = 75;
+  nx = 150;  /* size per proc nx*ny*nz */
+  ny = 150;
+  nz = 150;
 
   values = hypre_CTAlloc(double, 4);
   values[0] = 6; 
@@ -143,19 +146,15 @@ t0 = omp_get_wtime();
 
   totalWallTime += t1 - t0;
 
-  double total_target_loop_time = 0.0;
-
   for(i=0; i<testIter; i++){
     total_target_loop_time += time_array[i];
   }
-
-  printf("target loop time=%f seconds\n", total_target_loop_time);
  
   y_data = hypre_VectorData(y);
   sol_data = hypre_VectorData(sol);
 
   error = 0;
-  for (i=0; i < nx*ny*nz; i++)
+  for (i=0; i < nx*ny*nz*5; i++)
   {
       diff = fabs(y_data[i]-sol_data[i]);
       if (diff > error) error = diff;

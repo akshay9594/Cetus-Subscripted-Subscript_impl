@@ -57,7 +57,7 @@ hypre_CSRMatrixCreate( int num_rows,
 
    /* set defaults */
    hypre_CSRMatrixOwnsData(matrix) = 1;
-   //printf("nnzs=%d, num_rows=%d\n", num_nonzeros , num_rows);
+   printf("NNZs=%d, num_rows=%d, num_cols=%d\n", num_nonzeros , num_rows,num_cols);
    //hypre_CSRMatrixNumRownnz(matrix) = num_rows;
 
 
@@ -155,8 +155,6 @@ hypre_CSRMatrixSetRownnz( hypre_CSRMatrix *matrix )
       adiag = (A_i[i+1] - A_i[i]);
       if(adiag > 0) irownnz++;
    }
-
-  printf("irownnz=%d, num_rows =%d\n", irownnz, num_rows);
    
    hypre_CSRMatrixNumRownnz(matrix) = irownnz;
 

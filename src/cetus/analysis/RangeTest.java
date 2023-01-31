@@ -772,6 +772,8 @@ public class RangeTest implements DDTest {
         Map<Symbol, String> VarProps_Map = RangeAnalysis.query(Outerloop, "Properties");
         Map<Symbol,Object> AggSubs_Map =  RangeAnalysis.query(Outerloop, "Aggregate Subscripts");
        
+        if(VarProps_Map.isEmpty())
+            return false;
         String Outerloop_ant = (Outerloop.getAnnotation(PragmaAnnotation.class, "name")).toString();
     
         Map<String,RangeDomain> Aggregate_Ranges = RangeAnalysis.query(Outerloop, "Aggregate Ranges");
@@ -929,7 +931,7 @@ public class RangeTest implements DDTest {
 
         Map<String,RangeDomain> Aggregate_Ranges = RangeAnalysis.query(CurrentLoop, "Aggregate Ranges");
 
-        if(Aggregate_Ranges == null)
+        if(Aggregate_Ranges == null || Aggregate_Ranges.isEmpty())
         return false;
 
         RangeDomain RDCurrentLoop = Aggregate_Ranges.get(loop_ant);
@@ -1028,7 +1030,7 @@ public class RangeTest implements DDTest {
         Map<Symbol,Object> Agg_Subscripts = RangeAnalysis.query(CurrentLoop, "Aggregate Subscripts");
         RangeExpression loop_range = getLoopRange(CurrentLoop);
 
-        if(VarProps_Map == null)
+        if(VarProps_Map == null || VarProps_Map.isEmpty())
             return false;
             
         Expression loop_stride = LoopTools.getIncrementExpression(CurrentLoop);

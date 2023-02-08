@@ -5,7 +5,7 @@
 # notice and disclaimer.                                               *
 #                                                                      *
 #EHEADER****************************************************************
-CC       = mpicc -fopenmp
+CC       = gcc -fopenmp
 
 CFLAGS   = -O3 
 

@@ -1,0 +1,2 @@
+gcc -o cholmod cholmod_analyze.c cholmod_colamd.c cholmod_demo.c cholmod_etree.c cholmod_factorize.c cholmod_postorder.c cholmod_rcond.c 
+cholmod_resymbol.c cholmod_rowcolcounts.c cholmod_rowfac.c cholmod_solve.c cholmod_spsolve.c t_cholmod_lsolve.c t_cholmod_ltsolve.c t_cholmod_rowfac.c t_cholmod_solve.c

@@ -5,24 +5,26 @@
 # notice and disclaimer.                                               *
 #                                                                      *
 #EHEADER****************************************************************
-CC       = gcc -fopenmp
+CC       = gcc
 
-CFLAGS   = -O3 
+CFLAGS   = -O3 -fopenmp 
 
-LDFLAGS  = -lm
+LDFLAGS  = -lm -mcmodel=medium -fopenmp 
 
-PROG     = AMGMk
+PROG     = ua.B.x
 
-OBJS     = main.o \
-           csr_matrix.o csr_matvec.o  \
-           laplace.o relax.o \
-           hypre_error.o hypre_memory.o \
-           vector.o
+OBJS     = ua.o \
+           convect.o adapt.o diffuse.o \
+           move.o mason.o \
+           precond.o utils.o \
+           transfer.o verify.o \
+           setup.o print_results.o \
+           c_timers.o wtime.o
 
 all : $(PROG)
 
 $(PROG) : $(OBJS)
-	${CC} -o $(PROG) $(OBJS) $(LDFLAGS)
+	${CC} -O3 -o $(PROG) $(OBJS) $(LDFLAGS)
 
 
 clean :

@@ -120,14 +120,3 @@ tree(children 8)=tree()+111
    xc(i,iel) records the z coordinates of the i'th vertex of element iel
 
 6.cbc(i,iel) records the type of face i of element iel
-
-
-./cetus -subsub_analysis -normalize-loops -reduction=1 -alias=3 ua.c convect.c diffuse.c adapt.c move.c mason.c precond.c utils.c transfer.c verify.c setup.c ../common/print_results.c ../common/c_timers.c ../common/wtime.c
-
-with inline:
-
-./cetus -subsub_analysis -normalize-loops -reduction=1 -alias=3 -tinline=mode=2:depth=1:functions=geom1,transf ua.c convect.c diffuse.c adapt.c move.c mason.c precond.c utils.c transfer.c verify.c setup.c ../common/print_results.c ../common/c_timers.c ../common/wtime.c
-
-Compiling Cetus output:
-
-gcc -O3 -fopenmp -o ua_out ua.c convect.c diffuse.c adapt.c move.c mason.c precond.c utils.c transfer.c verify.c setup.c print_results.c c_timers.c wtime.c -lm

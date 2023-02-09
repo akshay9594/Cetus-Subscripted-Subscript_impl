@@ -365,8 +365,8 @@ static int TEMPLATE (cholmod_super_numeric)
 
 	gettimeofday(&start,NULL);
 
-#pragma omp parallel for private ( p, pend, pfend, pf, i, j, imap, q )  \
-    num_threads(CHOLMOD_OMP_NUM_THREADS) if ( k2-k1 > 64 )
+// #pragma omp parallel for private ( p, pend, pfend, pf, i, j, imap, q )  \
+//     num_threads(CHOLMOD_OMP_NUM_THREADS) if ( k2-k1 > 64 )
         for (k = k1 ; k < k2 ; k++)
         {
             if (stype != 0)
@@ -427,6 +427,7 @@ static int TEMPLATE (cholmod_super_numeric)
                     }
                 }
             }
+
         }
    
 	gettimeofday(&end, NULL);

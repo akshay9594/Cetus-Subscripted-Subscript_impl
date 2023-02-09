@@ -35,7 +35,7 @@
 #include "headers.h"
 #include <assert.h>
 #include <stdlib.h>
-//#include "omp.h"
+#include "omp.h"
 
 /*--------------------------------------------------------------------------
  * hypre_CSRMatrixMatvec
@@ -157,7 +157,7 @@ t0 = omp_get_wtime();
     if (num_rownnz < xpar*(num_rows))
     {
       
-        #pragma omp parallel for private(i,jj,tempx) schedule(static)
+        //#pragma omp parallel for private(i,jj,tempx) schedule(static)
          for (i = 0; i < num_rownnz; i++)
          {
          /*

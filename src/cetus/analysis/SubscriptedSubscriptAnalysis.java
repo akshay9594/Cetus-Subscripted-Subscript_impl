@@ -784,7 +784,6 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
         Expression LoopIterationCount = Symbolic.add(Symbolic.subtract(LoopIdxRange.getUB() , LoopIdxRange.getLB()), new IntegerLiteral(1));
         Expression ValueBeforeLoop = null;
 
-        
         Symbol LoopIndexSymbol = SymbolTools.getSymbolOf(LoopIdx);
 
         if(!LoopTools.isOutermostLoop(input_for_loop)){
@@ -792,6 +791,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
             Expression LoopUBVal = RangeValsBeforeLoop.getRange(LoopIndexSymbol);
             LoopRangeExpressions.setRange(LoopIndexSymbol, LoopUBVal);
 
+           
             RangeValsBeforeLoop = null;
 
         }
@@ -802,8 +802,13 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
        // System.out.println("\nResults of Phase 2 Analysis for "+ LoopIndexSymbol +"-loop: " +"\n");
 
         //Collect info about the loop index symbol - aggregate range and property
-        LoopIdxRange = (RangeExpression)LoopRangeExpressions.substituteForwardRange(LoopIdxRange);
+        Expression SubstitutedRange = (RangeExpression)LoopRangeExpressions.substituteForwardRange(LoopIdxRange);
+
+        if(!IRTools.containsClass(SubstitutedRange, InfExpression.class))
+            LoopRangeExpressions.setRange(LoopIndexSymbol, SubstitutedRange);
+        else
         LoopRangeExpressions.setRange(LoopIndexSymbol, LoopIdxRange);
+
         SSR_variables.add(LoopIndexSymbol);
         variable_property.put(LoopIndexSymbol, "STRICT_MONOTONIC");
 
@@ -922,11 +927,12 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                                else if(!is_constant(LVV_Value_expr) && 
                                             RangeValsBeforeLoop!=null &&
                                             RangeValsBeforeLoop.getSymbols().contains(sym)){
-                                    Expression SubValue = LoopRangeExpressions.substituteForwardRange(LVV_Value_expr);
-                                    RangeDomain rd = new RangeDomain();
-                                    rd.setRange(sym, SubValue);
-                                    rd.unionRanges(RangeValsBeforeLoop);
-                                     LoopRangeExpressions.setRange(sym, rd.getRange(sym));
+                                    
+                                   
+                                    Expression SubValue = LoopRangeExpressions.expandSymbol(LVV_Value_expr, LoopIndexSymbol);
+                                   
+                                     LoopRangeExpressions.setRange(sym, SubValue);
+                                    
                                }
                             //    else
                             //         LoopRangeExpressions.setRange(sym, new StringLiteral("bot"));
@@ -986,8 +992,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
 
                }
 
-               
-              
+
                LoopRangeExpressions.removeRange(LoopIndexSymbol);
           
         }
@@ -1263,8 +1268,14 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
         stride.setParent(null);
 
         if(ValuesBeforeLoopHeader!= null){
-            LoopUpperbound = ValuesBeforeLoopHeader.substituteForwardRange(LoopUpperbound);
-            LoopLowerbound = ValuesBeforeLoopHeader.substituteForwardRange(LoopLowerbound);
+            Expression ForSubUB = ValuesBeforeLoopHeader.substituteForwardRange(LoopUpperbound);
+            if(!IRTools.containsClass(ForSubUB, InfExpression.class))
+                    LoopUpperbound = ForSubUB;
+
+            Expression ForSubLB = ValuesBeforeLoopHeader.substituteForwardRange(LoopLowerbound);
+            if(!IRTools.containsClass(ForSubLB, InfExpression.class))
+                    LoopLowerbound = ForSubLB;
+            
         }
         
         RangeExpression LoopIndexRange = new RangeExpression(LoopLowerbound,LoopUpperbound, stride);
@@ -1337,9 +1348,11 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
             Expression coeff = Symbolic.getCoefficient(SSR_expr, ssr_var);
             if(remainder instanceof RangeExpression){
                 Expression remainder_ub = ((RangeExpression)remainder).getUB();
+                Expression remainder_lb = ((RangeExpression)remainder).getLB();
+                Expression coeff_plus_lb = Symbolic.add(remainder_lb, coeff);
                 
                 if(Symbolic.gt(coeff, new IntegerLiteral(1)).equals(new IntegerLiteral(1)) &&
-                    Symbolic.ge(coeff, remainder_ub).equals(new IntegerLiteral(1))){
+                    Symbolic.ge(coeff_plus_lb, remainder_ub).equals(new IntegerLiteral(1))){
                         return "Class 2";
                 }
                 else

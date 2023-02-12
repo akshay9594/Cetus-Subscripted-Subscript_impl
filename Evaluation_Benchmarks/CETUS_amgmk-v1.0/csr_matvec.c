@@ -35,7 +35,7 @@
 #include "headers.h"
 #include <assert.h>
 #include <stdlib.h>
-#include "omp.h"
+//#include "omp.h"
 
 /*--------------------------------------------------------------------------
  * hypre_CSRMatrixMatvec

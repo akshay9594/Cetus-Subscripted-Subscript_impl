@@ -918,7 +918,6 @@ public class RangeTest implements DDTest {
                 !SingleDimensional_SubscriptArrays(e2))
                     return false;
             
-                    
        
         ForLoop CurrentLoop = (ForLoop)loop;
         Map<Symbol, String> VarProps_Map = RangeAnalysis.query(CurrentLoop, "Properties");
@@ -940,10 +939,14 @@ public class RangeTest implements DDTest {
             return false;
         }
         
+        ArrayAccess index_array = IRTools.getSubscriptArray(e1);
+        if(index_array == null)
+            return false;
         //Determine the index array and it's value range from range analysis
-        ArrayAccess index_array = IRTools.getDescendentsOfType(e1, ArrayAccess.class).get(0);
+        
         Symbol index_array_name = SymbolTools.getSymbolOf(index_array.getArrayName());
         RangeExpression index_array_val = (RangeExpression)RDCurrentLoop.getRange(index_array_name);
+        List<Expression> Subscript_array_indirections = index_array.getIndices();
 
         if(index_array_val == null)
             return false;
@@ -959,15 +962,13 @@ public class RangeTest implements DDTest {
 
         }
 
-        //If no property exists for the index array, analyze it's value expression
-        if(!VarProps_Map.keySet().contains(index_array_name)){
+        Expression f_iter = e1.clone();
+        Expression g_iter = e2.clone();
 
-            //Only analyze f and g, where (f-g >= 0), since we want to find fmax and gmin
-            if(Symbolic.subtract(e1, e2).equals(new IntegerLiteral(0))||
-               Symbolic.subtract(e1, e2).equals(new IntegerLiteral(1))){
+        //If no property exists for the index array, analyze it's value expression
+        if(!VarProps_Map.keySet().contains(index_array_name) &&
+            Subscript_array_indirections.iterator().next() instanceof ArrayAccess){
                 
-                Expression f_iter = e1.clone();
-                Expression g_iter = e2.clone();
                 //Replace the subscript array with it's value range
                 IRTools.replaceAll(f_iter, index_array, index_array_val.getUB());
                 IRTools.replaceAll(g_iter, index_array, index_array_val.getLB());
@@ -979,6 +980,7 @@ public class RangeTest implements DDTest {
                         return false;
                 else
                     {
+                        
                             //Determine if fmax(k) < gmin(k+1), where 'k' is the loop index and 
                             // if gmin is monotonically increasing.
                             Expression nextiter = Symbolic.add(CurrentIter,Loopstride);
@@ -986,20 +988,37 @@ public class RangeTest implements DDTest {
                             f_iter =  Symbolic.simplify(f_iter);
                             Expression g_nextiter =  Symbolic.simplify(g_iter);
                             Expression difference = Symbolic.subtract(g_nextiter, f_iter);
-                            if(Symbolic.gt(difference, new IntegerLiteral(0)).equals(difference) &&
-                                getMonoState(g_nextiter, g_nextiter, loop) == MONO_NONDEC){
+                            if(Symbolic.gt(difference, new IntegerLiteral(0)).equals(difference)){
                                 return true;
                             }
                             else
                                 return false;
                     }
-
-               }
-               else
-                    return false;
                
 
         }
+
+        if(f_iter.equals(g_iter) && 
+            VarProps_Map.get(index_array_name).equals("STRICT_MONOTONIC")){
+            LinkedList<Loop> Loops_in_Nest = LoopTools.calculateInnerLoopNest(loop);
+            Loops_in_Nest.remove(CurrentLoop);
+          
+            for(Loop innerloop: Loops_in_Nest){
+                Expression loop_id = LoopTools.getIndexVariable(innerloop);
+                RangeExpression loop_range = getLoopRange((ForLoop)innerloop);
+                
+                if(IRTools.containsExpression(f_iter, loop_id) &&
+                    IRTools.containsExpression(g_iter, loop_id)){
+                    IRTools.replaceAll(f_iter, loop_id , loop_range);
+                    IRTools.replaceAll(g_iter, loop_id , loop_range);
+                }
+            }
+
+            f_iter = Symbolic.simplify(f_iter);
+            g_iter = Symbolic.simplify(g_iter);
+            System.out.println("f and g: " + f_iter + "," + g_iter +"\n");
+        }
+        
 
         
         return false;

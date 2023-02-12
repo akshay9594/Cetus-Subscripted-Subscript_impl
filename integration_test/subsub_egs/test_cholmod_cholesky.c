@@ -17,12 +17,12 @@ int pf, psx, nsrow, psi, Ls[N];
 int fjk[2], Ax[N], Ap[N], Ai[N], Lx[N], Fx[N], Map[N], Fi[N], Fp[N];
 
 
-for(i = 0; i < N; i++)
+for(i = 0; i < nsrow; i++)
 {
    Map[i] = -1;
 } 
 
-for(k = 0; k < N; k++)
+for(k = 0; k < nsrow; k++)
 {
     Map[Ls[psi + k]] = k;
 }
@@ -39,7 +39,7 @@ for(k=k1; k<k2; k++)
         i = Ai[p];
         if(i>=k && Map[i]>=0)
         {
-           q = (Map[i]+psx+(k-k1)*N);
+           q = (Map[i]+psx+(k-k1)*nsrow);
            Lx[2*q] += Ax[2*p]*fjk[0]-Ax[2*p+1]*fjk[1];
            Lx[2*q+1] += Ax[2*p+1]*fjk[0]-Ax[2*p]*fjk[1];
         }

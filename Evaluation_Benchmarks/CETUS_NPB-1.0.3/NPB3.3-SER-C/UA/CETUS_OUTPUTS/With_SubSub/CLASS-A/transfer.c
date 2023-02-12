@@ -600,7 +600,7 @@ void transfb(double tmor[], double tx[])
 				#pragma cetus private(col, i, i_0, i_1, ije2, il, j, j_0, shift, tmp) 
 				#pragma loop name transfb#1#0#0 
 				#pragma cetus parallel 
-				#pragma omp parallel for if((10000<(1L+(499L*nnje)))) private(col, i, i_0, i_1, ije2, il, j, j_0, shift, tmp)
+				#pragma omp parallel for if((10000<(1L+(499L*nnje)))) private(col, i, i_0, i_1, ije2, il, j, j_0, shift, tmp)schedule(dynamic)
 				for (ije2=0; ije2<nnje; ije2 ++ )
 				{
 					shift=ije2;

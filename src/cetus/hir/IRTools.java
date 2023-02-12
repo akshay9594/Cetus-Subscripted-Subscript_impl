@@ -787,6 +787,39 @@ public final class IRTools {
     }
 
     /**
+     * Returns the subscript array in the subscript expression. Useful
+     * when the subscript array has more than 1 levels of indirection.
+     * @param Subscript_expr
+     * @return
+     */
+
+    public static ArrayAccess getSubscriptArray(Expression Subscript_expr){
+
+        Set<Expression> array_expressions = new HashSet<>();
+        FlatIterator<ArrayAccess> iter = new FlatIterator<ArrayAccess>(Subscript_expr);
+        while(iter.hasNext()){
+            Traversable expr = (Traversable)iter.next();
+            if(IRTools.containsClass(expr, ArrayAccess.class)){
+              array_expressions.add((Expression)expr);
+            }
+        }
+
+        if(array_expressions.size() > 1)
+            return null;
+
+        Expression arr_expr = array_expressions.iterator().next();
+
+        for(Traversable child : arr_expr.getChildren()){
+
+            if(child instanceof ArrayAccess){
+                return (ArrayAccess)child;
+            }
+        }
+        return null;
+
+    }
+
+    /**
     * Checks if the specified traversable object is located within an included
     * code section. This information could be useful when applying any
     * transformation to a code section since any changes on the code within an

@@ -887,7 +887,6 @@ public class RangeTest implements DDTest {
            
 
         }
-           
         
         return false;
 
@@ -947,6 +946,7 @@ public class RangeTest implements DDTest {
         }
         
         ArrayAccess index_array = IRTools.getSubscriptArray(e1);
+
         if(index_array == null)
             return false;
         //Determine the index array and it's value range from range analysis
@@ -1007,6 +1007,7 @@ public class RangeTest implements DDTest {
 
         }
 
+
         if(f_iter.equals(g_iter) && 
             VarProps_Map.get(index_array_name).equals("STRICT_MONOTONIC") &&
             indirection.equals(LoopTools.getIndexVariable(CurrentLoop))){
@@ -1035,10 +1036,14 @@ public class RangeTest implements DDTest {
                 Expression index_array_coeff_plus_remainder_lb = Symbolic.add(index_array_coeff, remainder_lb);
                 Expression diffExpression = Symbolic.subtract(index_array_coeff_plus_remainder_lb, remainder_ub);
 
-                if(diffExpression instanceof IntegerLiteral && 
-                                Symbolic.gt(diffExpression, new IntegerLiteral(1)).equals(diffExpression)){
-
-                    return true;
+                if(diffExpression instanceof IntegerLiteral)
+                {
+        
+                    //Following returns 1 if a>b and 0 if a<b
+                    if(Symbolic.gt(diffExpression, new IntegerLiteral(1)).equals(new IntegerLiteral(1)))
+                        return true;
+                    else
+                        return false;
                 }
                 else if(diffExpression instanceof Expression){
 
@@ -1052,6 +1057,7 @@ public class RangeTest implements DDTest {
                 }
 
             }
+                
             
         }
         

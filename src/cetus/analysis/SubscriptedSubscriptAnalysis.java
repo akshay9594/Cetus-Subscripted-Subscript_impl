@@ -112,10 +112,11 @@ private void wrapper(CFGraph SubroutineGraph){
             node.putData("num-visits", visits + 1);
         }
 
-        // if(node.getData("ir") != null)
-        // System.out.println("node: " + node.getData("ir") + node.getData("num-visits") +"\n");
+        //  if(node.getData("ir") != null)
+        // System.out.println("node: " + node.getData("ir")  +"\n");
         // else
-        // System.out.println("node: " + node.getData("tag") + node.getData("num-visits") + "\n");
+        // System.out.println("node: " + node.getData("tag")  +"\n");
+
 
         if((Integer)node.getData("num-visits") > 2){
 
@@ -174,100 +175,97 @@ private void wrapper(CFGraph SubroutineGraph){
 
                 outermost_for_loop = (ForLoop)node.getData("stmt");
 
-                LinkedList<Loop>Loops_in_Nest =  new LinkedList();
-                //Initializing a LinkedList of Loop Control flowgraphs
-                //for loops in the loop nest.
-                LinkedList<CFGraph> Loop_CFG_List = new LinkedList();
+                if(!IRTools.containsClass(outermost_for_loop.getBody(), WhileLoop.class)){
 
-                Loops_in_Nest = LoopTools.calculateInnerLoopNest(outermost_for_loop);
-                boolean isPerfectNest = LoopTools.isPerfectNest(outermost_for_loop);
-                boolean LoopsInBody = false;
-                
-                boolean discontInner = ContainsDiscontiguousInnerLoops(outermost_for_loop.clone());
-            
-                CFGraph OuterLoopCFG = null;
-                
+                    LinkedList<Loop>Loops_in_Nest =  new LinkedList();
+                    //Initializing a LinkedList of Loop Control flowgraphs
+                    //for loops in the loop nest.
+                    LinkedList<CFGraph> Loop_CFG_List = new LinkedList();
 
-               for(int i =0; i < Loops_in_Nest.size() ; i++){
-                   ForLoop l = (ForLoop)Loops_in_Nest.get(i);
-                   CFGraph l_CFG = new CFGraph(l);
-                   if(l.equals(outermost_for_loop))
-                        OuterLoopCFG = l_CFG;
-
-                   Loop_CFG_List.add(l_CFG);
-                  
-               }
-            
-            //System.out.println("loop: " + LoopTools.getLoopName(outermost_for_loop) + "," + discontInner +"\n");
-
-            //   Set<Symbol> Symbols =SymbolTools.getAccessedSymbols(outermost_for_loop);
-        
-
-                if(!IdentifySubSubLoop(Loops_in_Nest) &&
-                   !ContainsUnsafeFunctionCalls(outermost_for_loop) &&
-                   !LoopTools.containsBreakStatement(outermost_for_loop) && 
-                   !discontInner
-                   )
-                {
-                //Perform the analysis for loops that do not contain subscripted susbcript pattern and
-                //loops that do not contain any function calls
-           
-                    //Store the range dictionary of the node immediately before the loop header
-                    RangeValuesBeforeCurrentLoop.put(LoopTools.getLoopName(outermost_for_loop), new RangeDomain(curr_ranges));
-
-                    normalizeCFG(OuterLoopCFG);                           //Important step after creating a CFGraph
-    
-                    if(Loops_in_Nest.size() > 1){
-
-                        CFGraph NextLoopCFG = null;
-
-                       
-                        for(int i = Loops_in_Nest.size()-1; i >=0; i--){
-                 
-                            ForLoop innerloop = (ForLoop)Loops_in_Nest.get(i);
-                            CFGraph CurrentLoopCFG = Loop_CFG_List.get(i);
-                            normalizeCFG(CurrentLoopCFG);
-                            
-                            //The inner loop nodes are to be collapsed in the CFG of
-                            // the next outer loop in the loop nest
-                            if(!innerloop.equals(outermost_for_loop)){
-                                NextLoopCFG = Loop_CFG_List.get(i-1);
-                                normalizeCFG(NextLoopCFG);
-                            }
+                    Loops_in_Nest = LoopTools.calculateInnerLoopNest(outermost_for_loop);
                     
-                            int loopnestdepth = LoopTools.calculateInnerLoopNest(innerloop).size();
-    
-                            //Perform the Subscripted Subscript Analysis
-                            SubSubAnalysis(innerloop, CurrentLoopCFG ,
-                            RangeValuesBeforeCurrentLoop.get(LoopTools.getLoopName(outermost_for_loop)),
-                            loopnestdepth);
-                           
-                            //Collapse the loop nodes in the appropriate CFGs
-                            if(innerloop.equals(outermost_for_loop)){
-                                node = CollapseLoopinCFG(SubroutineGraph , innerloop, node);
-                            }
-                            else{
-                                CollapseLoopinCFG(NextLoopCFG, innerloop, null);
-                            }
-                          }
-
-                    }
-                    else if(Loops_in_Nest.size() == 1){
-                             SubSubAnalysis(outermost_for_loop, OuterLoopCFG ,
-                                     RangeValuesBeforeCurrentLoop.get(LoopTools.getLoopName(outermost_for_loop)),
-                                     1);
-                             node = CollapseLoopinCFG(SubroutineGraph , outermost_for_loop, node);
-                    }
-
-                }
-                else{
-                    String Outerloop_ant = (outermost_for_loop.getAnnotation(PragmaAnnotation.class, "name")).toString();
-                    Loop_agg_ranges.put(Outerloop_ant, curr_ranges);
-                    node = CollapseLoopinCFG(SubroutineGraph, outermost_for_loop, node);
-    
-                }
+                    boolean discontInner = ContainsDiscontiguousInnerLoops(outermost_for_loop.clone());
                 
+                    CFGraph OuterLoopCFG = null;
+                    
+
+                    for(int i =0; i < Loops_in_Nest.size() ; i++){
+                        ForLoop l = (ForLoop)Loops_in_Nest.get(i);
+                        CFGraph l_CFG = new CFGraph(l);
+                        if(l.equals(outermost_for_loop))
+                                OuterLoopCFG = l_CFG;
+
+                        Loop_CFG_List.add(l_CFG);
+                        
+                    }
+                
+                    if(!IdentifySubSubLoop(Loops_in_Nest) &&
+                        !ContainsUnsafeFunctionCalls(outermost_for_loop) &&
+                        !LoopTools.containsBreakStatement(outermost_for_loop) && 
+                        !discontInner
+                      )
+                    {
+                    //Perform the analysis for loops that do not contain subscripted susbcript pattern and
+                    //loops that do not contain any function calls
+        
+                        //Store the range dictionary of the node immediately before the loop header
+                        RangeValuesBeforeCurrentLoop.put(LoopTools.getLoopName(outermost_for_loop), new RangeDomain(curr_ranges));
+
+                        normalizeCFG(OuterLoopCFG);                           //Important step after creating a CFGraph
+        
+                        if(Loops_in_Nest.size() > 1){
+
+                            CFGraph NextLoopCFG = null;
+
+                        
+                            for(int i = Loops_in_Nest.size()-1; i >=0; i--){
+                    
+                                ForLoop innerloop = (ForLoop)Loops_in_Nest.get(i);
+                                CFGraph CurrentLoopCFG = Loop_CFG_List.get(i);
+                                normalizeCFG(CurrentLoopCFG);
+                                
+                                //The inner loop nodes are to be collapsed in the CFG of
+                                // the next outer loop in the loop nest
+                                if(!innerloop.equals(outermost_for_loop)){
+                                    NextLoopCFG = Loop_CFG_List.get(i-1);
+                                    normalizeCFG(NextLoopCFG);
+                                }
+                        
+                                int loopnestdepth = LoopTools.calculateInnerLoopNest(innerloop).size();
+        
+                                //Perform the Subscripted Subscript Analysis
+                                SubSubAnalysis(innerloop, CurrentLoopCFG ,
+                                RangeValuesBeforeCurrentLoop.get(LoopTools.getLoopName(outermost_for_loop)),
+                                loopnestdepth);
+                            
+                                //Collapse the loop nodes in the appropriate CFGs
+                                if(innerloop.equals(outermost_for_loop)){
+                                    node = CollapseLoopinCFG(SubroutineGraph , innerloop, node);
+                                }
+                                else{
+                                    CollapseLoopinCFG(NextLoopCFG, innerloop, null);
+                                }
+                            }
+
+                        }
+                        else if(Loops_in_Nest.size() == 1){
+                                SubSubAnalysis(outermost_for_loop, OuterLoopCFG ,
+                                        RangeValuesBeforeCurrentLoop.get(LoopTools.getLoopName(outermost_for_loop)),
+                                        1);
+                                node = CollapseLoopinCFG(SubroutineGraph , outermost_for_loop, node);
+                        }
+
+                    }
+                    else{
+                        //System.out.println("collapsing subsub loop\n" + outermost_for_loop + "\n");
+                        String Outerloop_ant = (outermost_for_loop.getAnnotation(PragmaAnnotation.class, "name")).toString();
+                        Loop_agg_ranges.put(Outerloop_ant, curr_ranges);
+                        node = CollapseLoopinCFG(SubroutineGraph, outermost_for_loop, node);
+        
+                    }
+                    
             
+                }
             }
 
     
@@ -292,18 +290,18 @@ private void wrapper(CFGraph SubroutineGraph){
             RangeAnalysis.updateRanges(node);
 
             RangeAnalysis.exitScope(node);
-    
-            for (DFANode succ : node.getSuccs()) {
-                // Do not add successors for infeasible paths
-                
-                if (succ.getPredData(node) != null) {
-                   
-                    work_list.put((Integer)succ.getData("top-order"), succ);
-                
-                }
-            }  
 
         }
+
+        for (DFANode succ : node.getSuccs()) {
+            // Do not add successors for infeasible paths
+            // System.out.println("succ: " + succ.getData("ir") +"\n");
+            if (succ.getPredData(node) != null) {
+               
+                work_list.put((Integer)succ.getData("top-order"), succ);
+            
+            }
+        }  
 
         if(node.getData("tag") != null && node.getData("tag").equals("FOREXIT")){
        

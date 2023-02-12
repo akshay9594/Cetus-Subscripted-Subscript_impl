@@ -809,6 +809,8 @@ public final class IRTools {
 
         Expression arr_expr = array_expressions.iterator().next();
 
+        arr_expr = Symbolic.simplify(arr_expr);
+
         for(Traversable child : arr_expr.getChildren()){
 
             if(child instanceof ArrayAccess){

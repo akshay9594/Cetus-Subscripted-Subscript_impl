@@ -879,9 +879,6 @@ cholmod_factor *CHOLMOD(analyze_p2)
 	    {
 		Lcolcount [k] = Wi [k] ;
 	    }
-
-
-		
 	    for (k = 0 ; k < n ; k++)
 	    {
 		InvPost [Post [k]] = k ;
@@ -913,8 +910,6 @@ cholmod_factor *CHOLMOD(analyze_p2)
     /* supernodal analysis, if requested or if selected automatically */
     /* ---------------------------------------------------------------------- */
 
-
-
 #ifndef NSUPERNODAL
     if (Common->supernodal > CHOLMOD_AUTO
     || (Common->supernodal == CHOLMOD_AUTO &&
@@ -934,7 +929,6 @@ cholmod_factor *CHOLMOD(analyze_p2)
 	CHOLMOD(free_sparse) (&A2, Common) ;
     }
 #endif
-
 
     /* ---------------------------------------------------------------------- */
     /* free temporary matrices and workspace, and return result L */

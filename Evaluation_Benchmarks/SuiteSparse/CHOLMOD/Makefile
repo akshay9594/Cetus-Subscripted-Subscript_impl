@@ -34,24 +34,12 @@ purge:
 # Remove all files not in the original distribution, except keep the 
 # compiled libraries.
 clean:
-	( cd Tcov ; $(MAKE) clean )
 	( cd Lib ; $(MAKE) clean )
-	( cd Valgrind ; $(MAKE) clean )
 	( cd Demo ; $(MAKE) clean )
-	( cd MATLAB ; $(RM) $(CLEAN) )
 
 distclean: purge
 
 ccode: all
-
-# Run the test coverage suite.  Takes about 40 minutes on a 3.2GHz Pentium.
-# Requires Linux (gcc, gcov).
-cov:
-	( cd Tcov ; $(MAKE) )
-
-# Run the test coverage suite using Valgrind.  This takes a *** long *** time.
-valgrind:
-	( cd Valgrind ; $(MAKE) )
 
 # Compile the C-callable libraries and the Demo programs.
 demos:

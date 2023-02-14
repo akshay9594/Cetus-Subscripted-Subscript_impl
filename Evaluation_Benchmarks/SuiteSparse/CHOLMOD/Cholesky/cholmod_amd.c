@@ -4,9 +4,6 @@
 
 /* -----------------------------------------------------------------------------
  * CHOLMOD/Cholesky Module.  Copyright (C) 2005-2006, Timothy A. Davis
- * The CHOLMOD/Cholesky Module is licensed under Version 2.1 of the GNU
- * Lesser General Public License.  See lesser.txt for a text of the license.
- * CHOLMOD is also available under other licenses; contact authors for details.
  * -------------------------------------------------------------------------- */
 
 /* CHOLMOD interface to the AMD ordering routine.  Orders A if the matrix is
@@ -168,7 +165,6 @@ int CHOLMOD(amd)
 	Control [AMD_AGGRESSIVE] = Common->method [Common->current].aggressive ;
     }
 
-   
 #ifdef LONG
     amd_l2 (n, C->p,  C->i, Len, C->nzmax, cnz, Nv, Next, Perm, Head, Elen,
 	    Degree, Wi, Control, Info) ;

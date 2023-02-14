@@ -441,19 +441,17 @@ public NewCParser(ParserSharedInputState state) {
 					catch (RecognitionException pe) {
 						
 						synPredMatched8 = false;
-
 					}
 
 					rewind(_m8);
 inputState.guessing--;
 				}
 
-				
 				if ( synPredMatched8 ) {
 					
 					extern_decl = true;
 					decl=declaration();
-					
+				
 					if ( inputState.guessing==0 ) {
 						
 						if (decl != null) {
@@ -469,9 +467,8 @@ inputState.guessing--;
 				}
 				else {
 					boolean synPredMatched10 = false;
-				
+
 					if (((_tokenSet_4.member(LA(1))) && (_tokenSet_5.member(LA(2))))) {
-					
 					
 						int _m10 = mark();
 						synPredMatched10 = true;
@@ -485,6 +482,7 @@ inputState.guessing--;
 						catch (RecognitionException pe) {
 						
 							synPredMatched10 = false;
+			
 						}
 						rewind(_m10);
 inputState.guessing--;
@@ -493,7 +491,6 @@ inputState.guessing--;
 					
 					if ( synPredMatched10 ) {
 						decl=functionDef();
-
 						if ( inputState.guessing==0 ) {
 							
 							//PrintTools.printStatus("Adding Declaration: ",3);
@@ -502,6 +499,7 @@ inputState.guessing--;
 							
 						}
 					}
+				
 					else if ((_tokenSet_6.member(LA(1))) && (_tokenSet_7.member(LA(2)))) {
 						decl=typelessDeclaration();
 						if ( inputState.guessing==0 ) {
@@ -511,6 +509,18 @@ inputState.guessing--;
 							tunit.addDeclaration(decl);
 							
 						}
+					}
+
+					else if(LA(1) == 24 && LA(2) == 34){
+						decl=functionDef();
+						if ( inputState.guessing==0 ) {
+							
+							//PrintTools.printStatus("Adding Declaration: ",3);
+							//PrintTools.printlnStatus(decl,3);
+							tunit.addDeclaration(decl);
+							
+						}
+						
 					}
 				
 
@@ -631,8 +641,7 @@ inputState.guessing--;
 		
 		Token  flcurly = null;
 		Declarator decl = null;
-		
-		
+	
 		try {      // for error handling
 			{
 			boolean synPredMatched14 = false;
@@ -1727,7 +1736,7 @@ inputState.guessing--;
 		Expression expr1 = null;
 		List tyname = null;
 		boolean typedefold = false;
-		
+	
 		
 		try {      // for error handling
 			if ( inputState.guessing==0 ) {
@@ -1881,6 +1890,7 @@ inputState.guessing--;
 			if ( inputState.guessing==0 ) {
 				hastypedef = typedefold;
 			}
+
 		}
 		catch (RecognitionException ex) {
 			if (inputState.guessing==0) {
@@ -1890,9 +1900,6 @@ inputState.guessing--;
 			  throw ex;
 			}
 		}
-
-		
-		
 		
 		return types;
 	}
@@ -5353,7 +5360,7 @@ inputState.guessing--;
 						statb = new ForLoop(new ExpressionStatement(expr1), expr2, expr3, stmt1);
 		  
 					} 
-					                                                                                           
+				                                                                                       
 					statb.setLineNumber(sline);                                                                    
 					                                                                                                                                                                                                                                                                        
 				}                                                                                                 

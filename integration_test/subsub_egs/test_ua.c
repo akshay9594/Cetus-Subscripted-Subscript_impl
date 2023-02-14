@@ -277,11 +277,12 @@ int main(){
  }
   
 
-void r_init(double a[], int n, double _const)
+static int r_init(double a[], int n, double _const)
 {
   int i;
 
   for (i = 0; i < n; i++) {
     a[i] = _const;
   }
+  return 0;
 }

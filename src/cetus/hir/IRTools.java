@@ -804,12 +804,16 @@ public final class IRTools {
             }
         }
 
-        if(array_expressions.size() > 1)
+        if(array_expressions.size() != 1)
             return null;
 
         Expression arr_expr = array_expressions.iterator().next();
 
         arr_expr = Symbolic.simplify(arr_expr);
+
+        if(!(arr_expr instanceof BinaryExpression) &&
+            (arr_expr instanceof ArrayAccess))
+            return (ArrayAccess)arr_expr;
 
         for(Traversable child : arr_expr.getChildren()){
 

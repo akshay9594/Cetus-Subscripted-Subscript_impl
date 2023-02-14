@@ -204,6 +204,8 @@ public class DDTDriver extends AnalysisPass {
             Loop loop,
             HashMap<Symbol, ArrayList<DDArrayAccessInfo>> loopArrayAccessMap,
             Traversable root) {
+            
+        Set<Expression> Defined_exprs = DataFlowTools.getDefSet(loop);
         if (root instanceof Expression) {
             DFIterator<Expression> iter =
                     new DFIterator<Expression>(root, Expression.class);
@@ -213,6 +215,7 @@ public class DDTDriver extends AnalysisPass {
             while (iter.hasNext()) {
                 Expression o = iter.next();
                 if (o instanceof AssignmentExpression) {
+               
                     AssignmentExpression expr = (AssignmentExpression)o;
                     //
                     // Only the left-hand side of an AssignmentExpression
@@ -261,22 +264,23 @@ public class DDTDriver extends AnalysisPass {
                     }
                 } 
                 else if (o instanceof ArrayAccess) {
+                    //Handling subscripted subscripts
                     ArrayAccess acc = (ArrayAccess)o;
                     Statement stmt = acc.getStatement();
 
-                    //Handling subscripted subscripts
-                    if((acc.getParent().getParent()) instanceof ArrayAccess){
+                    if(Defined_exprs.contains(acc)){
+                        DDArrayAccessInfo arrayInfo = new DDArrayAccessInfo(
+                            acc, DDArrayAccessInfo.write_type, loop, stmt);
+                            addArrayAccess(arrayInfo, loopArrayAccessMap);
+                    }
+                    else{
                         DDArrayAccessInfo arrayInfo = new DDArrayAccessInfo(
                             acc, DDArrayAccessInfo.read_type, loop, stmt);
                             addArrayAccess(arrayInfo, loopArrayAccessMap);
-                    }
+                        }
 
-                    else{
-                        DDArrayAccessInfo arrayInfo = new DDArrayAccessInfo(
-                                acc, DDArrayAccessInfo.write_type, loop, stmt);
-                        addArrayAccess(arrayInfo, loopArrayAccessMap);
-                    }
                 }
+                
                 else{
                    // System.out.println("DDTdriver pointer: " + o +"\n");
                 }

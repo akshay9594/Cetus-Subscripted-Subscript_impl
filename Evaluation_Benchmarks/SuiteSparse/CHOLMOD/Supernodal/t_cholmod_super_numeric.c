@@ -16,12 +16,13 @@
 /* === complex arithmetic =================================================== */
 /* ========================================================================== */
 
-#include "cholmod_template.h"
-#include <sys/time.h>
+
 #include <stdio.h>
-#include <omp.h>
+//#include <omp.h>
 #include <stdlib.h>
 #include <assert.h>
+#include "cholmod_template.h"
+#include <sys/time.h>
 #undef L_ENTRY
 #undef L_CLEAR
 #undef L_ASSIGN
@@ -93,6 +94,7 @@
 
 /* This function returns FALSE only if integer overflow occurs in the BLAS.
  * It returns TRUE otherwise whether or not the matrix is positive definite. */
+
 
 static int TEMPLATE (cholmod_super_numeric)
 (

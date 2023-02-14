@@ -87,7 +87,7 @@ CHOLESKY = cholmod_amd.o cholmod_analyze.o cholmod_colamd.o \
 	cholmod_rcond.o cholmod_resymbol.o cholmod_rowcolcounts.o \
 	cholmod_rowfac.o cholmod_solve.o cholmod_spsolve.o
 
-MATRIXOPS = cholmod_drop.o cholmod_horzcat.o cholmod_norm.o \
+MATRIXOPS = cholmod_drop.o cholmod_norm.o \
 	cholmod_scale.o cholmod_sdmult.o cholmod_ssmult.o \
 	cholmod_submatrix.o cholmod_vertcat.o cholmod_symmetry.o
 

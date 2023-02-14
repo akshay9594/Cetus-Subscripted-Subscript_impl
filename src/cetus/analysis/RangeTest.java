@@ -364,6 +364,7 @@ public class RangeTest implements DDTest {
         for (int i = common_loops.size() - 1; i >= 0; i--) {
             Loop loop = common_loops.get(i);
             Set<Loop> inner_permuted = new LinkedHashSet<Loop>(permuted);
+        
             boolean placed = false;
             if (verbosity >= 3) {
                 PrintTools.printlnStatus(3, tag, "for", loopToString(loop));
@@ -377,11 +378,11 @@ public class RangeTest implements DDTest {
                 placed = true;
             }
            
+
             Iterator perm_iter = permuted.iterator();
 
             while (perm_iter.hasNext() && !placed) {
                 Loop perm_loop = (Loop)perm_iter.next();
-
                 if (test1(loop, inner_permuted)) {
                     parallel_loops.put(loop, TEST1_PASS);
                     placed = true;
@@ -398,6 +399,7 @@ public class RangeTest implements DDTest {
                     parallel_loops.put(loop, TEST4_PASS);       //Dependencing testing for subscripted subscripts
                     placed = true;
                     ParallelSubSubLoops.add(loop);
+                  
                 }
                 else if(test5(loop, inner_permuted)){
                     parallel_loops.put(loop, TEST5_PASS);       //Dependencing testing for subscripted subscripts
@@ -432,12 +434,23 @@ public class RangeTest implements DDTest {
                 //with non-relevant inner loops where f and g exclusively subscript arrays
                 else if(inner_permuted.isEmpty() &&
                         f instanceof ArrayAccess &&
-                        g instanceof ArrayAccess &&
-                        test3(loop, inner_permuted)){
-                    parallel_loops.put(loop, TEST3_PASS);       //Dependencing testing for subscripted subscripts
-                    placed = true;
-                    ParallelSubSubLoops.add(loop);
-                }
+                        g instanceof ArrayAccess) 
+                        
+                    {
+                        if( test3(loop, inner_permuted)){
+                            parallel_loops.put(loop, TEST3_PASS);       //Dependencing testing for subscripted subscripts
+                            placed = true;
+                            ParallelSubSubLoops.add(loop);
+                        }  
+                        // else if(test4(loop, inner_permuted)){
+                          
+                        //     parallel_loops.put(loop, TEST4_PASS);       //Dependencing testing for subscripted subscripts
+                        //     placed = true;
+                        //     ParallelSubSubLoops.add(loop);
+                        // }
+
+                      
+                    }
                
                 permuted.add(loop);
             }
@@ -919,7 +932,6 @@ public class RangeTest implements DDTest {
                             Loop loop, 
                             Set<Loop> Innerloops){
 
-
         if(!SingleDimensional_SubscriptArrays(e1) ||
                 !SingleDimensional_SubscriptArrays(e2))
                     return false;
@@ -937,7 +949,7 @@ public class RangeTest implements DDTest {
         Map<String,RangeDomain> Aggregate_Ranges = RangeAnalysis.query(CurrentLoop, "Aggregate Ranges");
 
         if(Aggregate_Ranges == null || Aggregate_Ranges.isEmpty())
-        return false;
+            return false;
 
         RangeDomain RDCurrentLoop = Aggregate_Ranges.get(loop_ant);
 
@@ -949,25 +961,17 @@ public class RangeTest implements DDTest {
 
         if(index_array == null)
             return false;
+        
         //Determine the index array and it's value range from range analysis
         
         Symbol index_array_name = SymbolTools.getSymbolOf(index_array.getArrayName());
-        RangeExpression index_array_val = (RangeExpression)RDCurrentLoop.getRange(index_array_name);
+
+        Expression index_array_val = RDCurrentLoop.getRange(index_array_name);
         List<Expression> Subscript_array_indirections = index_array.getIndices();
 
         if(index_array_val == null)
             return false;
 
-        List<IfStatement> Conditional_stmts = IRTools.getStatementsOfType(loop, IfStatement.class);
-       
-        //Analyze the conditional statements and incorporate constraints on the index array,
-        //in the range expression for the array.
-        if(Conditional_stmts != null){
-
-            index_array_val = AnalyzeLoopConditionals(Conditional_stmts, index_array , 
-                                                                index_array_name,index_array_val);
-
-        }
 
         Expression f_iter = e1.clone();
         Expression g_iter = e2.clone();
@@ -976,11 +980,12 @@ public class RangeTest implements DDTest {
 
         //If no property exists for the index array, analyze it's value expression
         if(!VarProps_Map.keySet().contains(index_array_name) &&
-                indirection instanceof ArrayAccess){
+                indirection instanceof ArrayAccess &&
+                index_array_val instanceof RangeExpression){
                 
                 //Replace the subscript array with it's value range
-                IRTools.replaceAll(f_iter, index_array, index_array_val.getUB());
-                IRTools.replaceAll(g_iter, index_array, index_array_val.getLB());
+                IRTools.replaceAll(f_iter, index_array, ((RangeExpression)index_array_val).getUB());
+                IRTools.replaceAll(g_iter, index_array, ((RangeExpression)index_array_val).getLB());
 
                 //Reanalyze and determine relevant loops.(Loop index variable should appear in f and g)
                 if(!IRTools.containsExpression(f_iter,CurrentIter) &&
@@ -1009,8 +1014,10 @@ public class RangeTest implements DDTest {
 
 
         if(f_iter.equals(g_iter) && 
+            VarProps_Map.get(index_array_name) != null &&
             VarProps_Map.get(index_array_name).equals("STRICT_MONOTONIC") &&
             indirection.equals(LoopTools.getIndexVariable(CurrentLoop))){
+
             LinkedList<Loop> Loops_in_Nest = LoopTools.calculateInnerLoopNest(loop);
             Loops_in_Nest.remove(CurrentLoop);
 

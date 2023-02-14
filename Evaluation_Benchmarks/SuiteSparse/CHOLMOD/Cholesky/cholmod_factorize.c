@@ -56,7 +56,6 @@
 
 #include "cholmod_internal.h"
 #include "cholmod_cholesky.h"
-#include <stdio.h>
 
 #ifndef NSUPERNODAL
 #include "cholmod_supernodal.h"
@@ -116,7 +115,6 @@ int CHOLMOD(factorize_p)
     /* ---------------------------------------------------------------------- */
     /* check inputs */
     /* ---------------------------------------------------------------------- */
-
 
     RETURN_IF_NULL_COMMON (FALSE) ;
     RETURN_IF_NULL (A, FALSE) ;
@@ -262,7 +260,6 @@ int CHOLMOD(factorize_p)
 	/* ------------------------------------------------------------------ */
 
 	/* workspace: Flag (nrow), Head (nrow+1), Iwork (2*nrow+2*nsuper) */
-	
 	if (Common->status == CHOLMOD_OK)
 	{
 	    CHOLMOD(super_numeric) (S, F, beta, L, Common) ;

@@ -233,7 +233,8 @@ int main (int argc, char **argv)
 	tf = MAX (tf, 0) ;
     }
     double seconds = (end.tv_sec + (double)end.tv_usec/1000000) - (start.tv_sec + (double)start.tv_usec/1000000 );
-
+    printf("Total application time (I/O + computation): %lf s\n", seconds);
+     printf("\n********************************************************\n");
 
     cholmod_print_factor (L, "L", cm) ;
 

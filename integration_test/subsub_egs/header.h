@@ -214,4 +214,4 @@ extern int face_ld[3];
 // Locks used for atomic updates
 /* common /sync_cmn/ */
 
-void r_init(double a[], int n, double _const);
+static int r_init(double a[], int n, double _const);

@@ -62,7 +62,7 @@ public class SubscriptedSubscriptAnalysis extends AnalysisPass{
             proc_info.setProcedureSubRanges(procedure, Loop_agg_subscripts);
             proc_info.setProcedureAggRangeVals(procedure, Loop_agg_ranges);
 
-            //System.out.println( "proc: " + procedure.getName()+ ", proc props: " + Procedure_Props_Info +"\n");
+           // System.out.println( "proc: " + procedure.getName()+ ", proc props: " + proc_info.getProcedureAggRangeVals(procedure) +"\n");
             
         }
     
@@ -198,11 +198,17 @@ private void wrapper(CFGraph SubroutineGraph){
                         Loop_CFG_List.add(l_CFG);
                         
                     }
+
+                    Expression loop_lb =LoopTools.getLowerBoundExpression(outermost_for_loop);
+                    Expression loop_ub = LoopTools.getUpperBoundExpression(outermost_for_loop);
+                    Boolean nullBounds = false;
+                    if(loop_lb == null || loop_ub == null)
+                        nullBounds = true;
                 
                     if(!IdentifySubSubLoop(Loops_in_Nest) &&
                         !ContainsUnsafeFunctionCalls(outermost_for_loop) &&
                         !LoopTools.containsBreakStatement(outermost_for_loop) && 
-                        !discontInner
+                        !discontInner && !nullBounds
                       )
                     {
                     //Perform the analysis for loops that do not contain subscripted susbcript pattern and
@@ -1254,7 +1260,6 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
     //Returns the Range expression of the loop index variable of the input 'for' loop.
 
     private static RangeExpression getLoopIndexRange(ForLoop InputForLoop, RangeDomain ValuesBeforeLoopHeader){
-
 
         Expression LoopUpperbound = LoopTools.getUpperBoundExpression(InputForLoop);
         LoopUpperbound.setParent(null);

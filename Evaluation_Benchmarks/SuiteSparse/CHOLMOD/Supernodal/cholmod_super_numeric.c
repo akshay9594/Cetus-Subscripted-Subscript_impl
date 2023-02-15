@@ -264,6 +264,23 @@ int CHOLMOD(super_numeric)
 	return (FALSE) ;
     }
 
+    printf("\n********************************************************\n");
+    printf("Threads : %d\n", CHOLMOD_OMP_NUM_THREADS);
+
+    double one [2], zero [2], tstart,sum=0.0, sum1 = 0.0, sum2 = 0.0, sum3=0.0, thread_time[CHOLMOD_OMP_NUM_THREADS]={0.0}, starttime, endtime, threadtime;
+    double *Lx, *Ax, *Fx, *Az, *Fz, *Cw;
+    Int *Head, *Ls, *Lpi, *Lpx, *RelativeMap, *Next,
+        *Lpos, *Fp, *Fi, *Fnz, *Ap, *Ai, *Anz, *Iwork, *Next_save, *Lpos_save,
+        *Previous;
+    Int j, p, pend, k1, k2, nscol, psi, psx, psend, nsrow,
+        pj, d, kd1, kd2, info, ndcol, ndrow, pdi, pdx, pdend, pdi1, pdi2, pdx1,
+        ndrow1, ndrow2, px, dancestor, sparent, dnext, nsrow2, ndrow3, pk, pf,
+        pfend, Apacked, Fpacked, q, imap, repeat_supernode, nscol2, ss,
+        tail, nscol_new = 0;
+    double fjk[2];
+
+    struct timeval start,end, begin, terminate, init, stop,st,ed;
+
     /* ---------------------------------------------------------------------- */
     /* get workspace */
     /* ---------------------------------------------------------------------- */
@@ -282,52 +299,16 @@ int CHOLMOD(super_numeric)
 
     /* SuperMap [k] = s if column k is contained in supernode s */
     for (s = 0 ; s < nsuper ; s++)
-    {
-        PRINT1 (("Super ["ID"] "ID" ncols "ID"\n",
-                s, Super[s], Super[s+1]-Super[s]));
+    { 
         for (k = Super [s] ; k < Super [s+1] ; k++)
         {
             SuperMap [k] = s ;
-            PRINT2 (("relaxed SuperMap ["ID"] = "ID"\n", k, SuperMap [k])) ;
         }
     }
 
-      printf("\n********************************************************\n");
-      printf("Threads : %d\n", CHOLMOD_OMP_NUM_THREADS);
-
-    double one [2], zero [2], tstart,sum=0.0, sum1 = 0.0, sum2 = 0.0, sum3=0.0, thread_time[CHOLMOD_OMP_NUM_THREADS]={0.0}, starttime, endtime, threadtime;
-    double *Lx, *Ax, *Fx, *Az, *Fz, *Cw;
-    Int *Head, *Ls, *Lpi, *Lpx, *RelativeMap, *Next,
-        *Lpos, *Fp, *Fi, *Fnz, *Ap, *Ai, *Anz, *Iwork, *Next_save, *Lpos_save,
-        *Previous;
-    Int j, p, pend, k1, k2, nscol, psi, psx, psend, nsrow,
-        pj, d, kd1, kd2, info, ndcol, ndrow, pdi, pdx, pdend, pdi1, pdi2, pdx1,
-        ndrow1, ndrow2, px, dancestor, sparent, dnext, nsrow2, ndrow3, pk, pf,
-        pfend, Apacked, Fpacked, q, imap, repeat_supernode, nscol2, ss,
-        tail, nscol_new = 0;
-    double fjk[2];
-
-    struct timeval start,end, begin, terminate, init, stop,st,ed;
     /* ---------------------------------------------------------------------- */
     /* supernodal numerical factorization, using template routine */
     /* ---------------------------------------------------------------------- */
-
-    switch (A->xtype)
-    {
-	case CHOLMOD_REAL:
-                /* ---------------------------------------------------------------------- */
-            /* declarations for the GPU */
-            /* ---------------------------------------------------------------------- */
-
-            /* these variables are not used if the GPU module is not installed */
-
-        #ifdef GPU_BLAS
-            Int ndescendants, mapCreatedOnGpu, supernodeUsedGPU,
-                idescendant, dlarge, dsmall, skips ;
-            int iHostBuff, iDevBuff, useGPU, GPUavailable ;
-            cholmod_gpu_pointers *gpu_p, gpu_pointer_struct ;
-            gpu_p = &gpu_pointer_struct ;
-        #endif
 
             /* ---------------------------------------------------------------------- */
             /* guard against integer overflow in the BLAS */
@@ -415,6 +396,8 @@ int CHOLMOD(super_numeric)
 
             stype = A->stype ;
 
+            stype = 0;
+
             if (stype != 0)
             {
                 /* F not accessed */
@@ -458,15 +441,6 @@ int CHOLMOD(super_numeric)
             * repeat_supernode flag tells us whether this is the repeated supernode.
             * Once supernode s is repeated, the factorization is terminated. */
             repeat_supernode = FALSE ;
-
-        #ifdef GPU_BLAS
-            if ( useGPU )
-            {
-                /* Case of GPU, zero all supernodes at one time for better performance*/
-                TEMPLATE2 (CHOLMOD (gpu_clear_memory))(Lx, L->xsize,
-                    CHOLMOD_OMP_NUM_THREADS);
-            }
-        #endif
 
             /* ---------------------------------------------------------------------- */
             /* supernodal numerical factorization */
@@ -526,7 +500,8 @@ int CHOLMOD(super_numeric)
             
                 pk = psx ;
 
-            gettimeofday(&start,NULL);
+                stype = 0;
+           // gettimeofday(&start,NULL);
         // #pragma omp parallel for private ( p, pend, pfend, pf, i, j, imap, q )  \
         //     num_threads(CHOLMOD_OMP_NUM_THREADS) if ( k2-k1 > 64 )
                 for (k = k1 ; k < k2 ; k++)
@@ -556,19 +531,19 @@ int CHOLMOD(super_numeric)
                         
                         for (pf = Fp[k]; pf < Fp[k+1]; pf++)
                         {
-                            j = Fi [pf] ;
+                            j = Fi[pf] ;
                             fjk[0] = Fx[pf];
 
                             for (p = Ap[j]; p < Ap [j+1] ; p++)
                             {
-                                i = Ai [p] ;
-                                if (i >= k)
+                                //i = Ai[p] ;
+                                if (Ai[p] >= k)
                                 {
                                     /* See the discussion of imap above. */
-                                    if (Map [i] >= 0 && Map [i] < nsrow)
+                                    if (Map [Ai[p]] >= 0 && Map [Ai[p]] < nsrow)
                                     {
                                         /* Lx [Map [i] + pk] += Ax [p] * fjk ; */
-                                         Lx [(Map [i]+psx+(k-k1)*nsrow)] += Ax [p] * fjk[0];
+                                         Lx [(Map [Ai[p]]+psx+(k-k1)*nsrow)] += Ax [p] * fjk[0];
 
                                     }
                                 }
@@ -1220,18 +1195,7 @@ int CHOLMOD(super_numeric)
                 CHOLMOD (gpu_end) (Common) ;
             }
         #endif
-                ok =0;
-	    break ;
-
-	// case CHOLMOD_COMPLEX:
-	//     ok = c_cholmod_super_numeric (A, F, beta, L, C, Common) ;
-	//     break ;
-
-	// case CHOLMOD_ZOMPLEX:
-	//     /* This operates on complex L, not zomplex */
-	//     ok = z_cholmod_super_numeric (A, F, beta, L, C, Common) ;
-	//     break ;
-    }
+    ok =0;
 
     /* ---------------------------------------------------------------------- */
     /* clear Common workspace, free temp workspace C, and return */

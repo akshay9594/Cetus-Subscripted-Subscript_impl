@@ -425,6 +425,7 @@ public class RangeTest implements DDTest {
             }
 
             if (!placed) {
+
                 // Assert inner_permuted.size() == 0
                 if (test1(loop, inner_permuted)) {
                     parallel_loops.put(loop, TEST1_PASS);
@@ -433,21 +434,22 @@ public class RangeTest implements DDTest {
                 }//Following part handles testing for subscripted subscript loops
                 //with non-relevant inner loops where f and g exclusively subscript arrays
                 else if(inner_permuted.isEmpty() &&
-                        f instanceof ArrayAccess &&
-                        g instanceof ArrayAccess) 
+                        IRTools.containsClass(f, ArrayAccess.class) &&
+                        IRTools.containsClass(g, ArrayAccess.class)) 
                         
                     {
-                        if( test3(loop, inner_permuted)){
+                        if(test3(loop, inner_permuted)){
                             parallel_loops.put(loop, TEST3_PASS);       //Dependencing testing for subscripted subscripts
                             placed = true;
                             ParallelSubSubLoops.add(loop);
                         }  
-                        // else if(test4(loop, inner_permuted)){
-                          
-                        //     parallel_loops.put(loop, TEST4_PASS);       //Dependencing testing for subscripted subscripts
-                        //     placed = true;
-                        //     ParallelSubSubLoops.add(loop);
-                        // }
+                        else if(test4(loop, inner_permuted)){
+                            parallel_loops.put(loop, TEST4_PASS);       //Dependencing testing for subscripted subscripts
+                            placed = true;
+                            ParallelSubSubLoops.add(loop);
+                            System.out.println( "\nloop: "+ LoopTools.getLoopName((ForLoop)loop) +"\n");
+
+                        }
 
                       
                     }
@@ -815,7 +817,7 @@ public class RangeTest implements DDTest {
 
                 return CheckPropertyAndLoopBounds(AggSubUB, LoopUB, Outerloop);
             }
-            else {
+            else if ( e1.equals(e2) && e1 instanceof ArrayAccess){
                 RangeDomain stmt_RD = RangeAnalysis.query(f_stmt);
                 Expression Array_value = stmt_RD.getRange(SubArray);
                 Expression Subscript = ((ArrayAccess)e1).getIndex(0);
@@ -835,6 +837,8 @@ public class RangeTest implements DDTest {
                    
                 return false;
             }
+            else 
+                return false;
         }
         
         Loop innerloop = Innerloops.iterator().next();
@@ -935,8 +939,7 @@ public class RangeTest implements DDTest {
         if(!SingleDimensional_SubscriptArrays(e1) ||
                 !SingleDimensional_SubscriptArrays(e2))
                     return false;
-            
-       
+
         ForLoop CurrentLoop = (ForLoop)loop;
         Map<Symbol, String> VarProps_Map = RangeAnalysis.query(CurrentLoop, "Properties");
 
@@ -956,6 +959,7 @@ public class RangeTest implements DDTest {
         if(RDCurrentLoop == null){
             return false;
         }
+
         
         ArrayAccess index_array = IRTools.getSubscriptArray(e1);
 
@@ -972,7 +976,6 @@ public class RangeTest implements DDTest {
         if(index_array_val == null)
             return false;
 
-
         Expression f_iter = e1.clone();
         Expression g_iter = e2.clone();
 
@@ -982,10 +985,34 @@ public class RangeTest implements DDTest {
         if(!VarProps_Map.keySet().contains(index_array_name) &&
                 indirection instanceof ArrayAccess &&
                 index_array_val instanceof RangeExpression){
+
+                RangeExpression valueRange = (RangeExpression)index_array_val;
+                List<IfStatement> loop_if_stmts = IRTools.getStatementsOfType(CurrentLoop, IfStatement.class);
                 
+                List<IfStatement> ifstmts_to_analyze = new ArrayList<>();
+
+                for(IfStatement ifst : loop_if_stmts){
+                    Expression control_expr = ifst.getControlExpression();
+                    if(IRTools.containsExpression(control_expr, index_array.getArrayName()))
+                       ifstmts_to_analyze.add(ifst);
+                }
+
+                valueRange = AnalyzeLoopConditionals(ifstmts_to_analyze, index_array, 
+                                                            index_array_name, valueRange);
+                    
+                if(!(RDCurrentLoop.substituteForwardRange(valueRange) instanceof RangeExpression))
+                        return false;
+
+                RangeExpression simplified_value = null;
+
+                simplified_value = (RangeExpression)RDCurrentLoop.substituteForwardRange(valueRange);
+
+                if(IRTools.containsClass(simplified_value, InfExpression.class))
+                    simplified_value = valueRange;
+
                 //Replace the subscript array with it's value range
-                IRTools.replaceAll(f_iter, index_array, ((RangeExpression)index_array_val).getUB());
-                IRTools.replaceAll(g_iter, index_array, ((RangeExpression)index_array_val).getLB());
+                IRTools.replaceAll(f_iter, index_array, simplified_value.getUB());
+                IRTools.replaceAll(g_iter, index_array, simplified_value.getLB());
 
                 //Reanalyze and determine relevant loops.(Loop index variable should appear in f and g)
                 if(!IRTools.containsExpression(f_iter,CurrentIter) &&
@@ -1002,8 +1029,10 @@ public class RangeTest implements DDTest {
                         f_iter =  Symbolic.simplify(f_iter);
                         Expression g_nextiter =  Symbolic.simplify(g_iter);
                         Expression difference = Symbolic.subtract(g_nextiter, f_iter);
+
                         if(Symbolic.gt(difference, new IntegerLiteral(0)).equals(difference)){
                             return true;
+
                         }
                         else
                             return false;
@@ -1206,33 +1235,57 @@ public class RangeTest implements DDTest {
     private static RangeExpression AnalyzeLoopConditionals(List<IfStatement> Conditional_stmts, 
                                                 ArrayAccess index_array ,Symbol index_array_name, RangeExpression index_array_val){
             
-        BinaryExpression id_expr = null;
+        RangeExpression return_expr = (RangeExpression)index_array_val.clone();
 
-            for(int i =0; i< Conditional_stmts.size(); i++){
-                IfStatement if_stmt = Conditional_stmts.get(i);
-                Expression Control_expr = if_stmt.getControlExpression();
-                List<Traversable> list_exprs = Control_expr.getChildren();
-                for(Traversable e : list_exprs){
-                    if(IRTools.containsSymbol(e, index_array_name)){
-                        RangeDomain rd = RangeAnalysis.query(if_stmt);
-                        id_expr = (BinaryExpression)rd.substituteForwardRange((Expression)e);
+        if(Conditional_stmts.size() != 1)
+            return index_array_val;
+
+        IfStatement Ifst_to_analyze = Conditional_stmts.iterator().next();
+
+        Expression control_expr = Ifst_to_analyze.getControlExpression();
+        
+        List<BinaryExpression> List_Binary_Exprs = IRTools.getExpressionsOfType(control_expr, BinaryExpression.class);
+        
+        if(List_Binary_Exprs.isEmpty())
+            return index_array_val;
+
+        for(BinaryExpression binexpr : List_Binary_Exprs){
+            BinaryOperator opr = binexpr.getOperator();
+            Expression LHS = binexpr.getLHS();
+
+            if(LHS instanceof ArrayAccess){
+                Symbol LHS_Array = SymbolTools.getSymbolOf((ArrayAccess)LHS) ;
+
+                if(LHS_Array.equals(index_array_name)){
+
+                    if(opr.equals(BinaryOperator.COMPARE_GE)){
+                            return_expr.setLB(binexpr.getRHS().clone());
                     }
-                        
+                    else if(opr.equals(BinaryOperator.COMPARE_GT)){
+                        return_expr.setLB(Symbolic.subtract(binexpr.getRHS().clone(),new IntegerLiteral(1)));
+                    }
+                    
+                    if(opr.equals(BinaryOperator.COMPARE_LE))
+                        return_expr.setUB(binexpr.getRHS().clone());
+                    else if (opr.equals(BinaryOperator.COMPARE_LT))
+                        return_expr.setUB(Symbolic.subtract(binexpr.getRHS().clone(), new IntegerLiteral(1)));
                 }
             }
-        
-        if(id_expr != null){
-            if(id_expr.getLHS().equals(index_array)){
-                BinaryOperator opr = id_expr.getOperator();
-                if(opr.equals(BinaryOperator.COMPARE_GE))
-                    return new RangeExpression(id_expr.getRHS().clone(), index_array_val.getUB().clone());
-                
-                else if(opr.equals(BinaryOperator.COMPARE_LE))
-                    return new RangeExpression(index_array_val.getLB().clone(), id_expr.getRHS().clone());
-            }
+
         }
+
+        // if(id_expr != null){
+        //     if(id_expr.getLHS().equals(index_array)){
+        //         BinaryOperator opr = id_expr.getOperator();
+        //         if(opr.equals(BinaryOperator.COMPARE_GE))
+        //             return new RangeExpression(id_expr.getRHS().clone(), index_array_val.getUB().clone());
+                
+        //         else if(opr.equals(BinaryOperator.COMPARE_LE))
+        //             return new RangeExpression(index_array_val.getLB().clone(), id_expr.getRHS().clone());
+        //     }
+        // }
          
-        return null;
+        return return_expr;
 
     }
 

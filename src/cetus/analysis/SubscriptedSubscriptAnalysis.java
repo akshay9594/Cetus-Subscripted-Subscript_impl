@@ -1035,7 +1035,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                                                     List<Symbol>List_SSR_Vars, RangeDomain RangesBeforeLoop)
     {
 
-    //System.out.println("LVV: " + LVV + " ,value: " + ValueExpr + " ,arr def expr: " + ArrayDefExpr +"\n");
+      //System.out.println("LVV: " + LVV + " ,value: " + ValueExpr + " ,arr def expr: " + DefExpr +"\n");
        //Check if the LVV is a scalar or an array. 
        //Scalars can have only Class 1 recurrence
 
@@ -1110,29 +1110,38 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                     List<Expression> Array_indices = ((ArrayAccess)DefExpr).getIndices();
                     SubscriptExp = Array_indices.remove(0);
                 }
+                else if(Loop_agg_subscripts.get(LVV) != null){
+
+                    List<Expression> Agg_Subs = (ArrayList)Loop_agg_subscripts.get(LVV);
+                    List<Expression> Subscript_Exprs = new ArrayList<>();
+                    for(Expression exp: Agg_Subs){
+                        if(IRTools.containsExpression(LoopIndex, exp))
+                            Subscript_Exprs.add(exp);
+                    }
+
+                    if(!(Subscript_Exprs.size() == 1))
+                        return "Unknown Class"; 
+                    SubscriptExp = Subscript_Exprs.iterator().next();
+                }
 
             }
          
             //If SSR expression is not null, Class 2 recurrence possible, else Class 3
             if(SSR_expr != null){
 
-                //Test for a Multi-Dimensional Subscript Array
-                if(arr_specs !=null && arr_specs.getNumDimensions() > 2 && !(ValueExpr instanceof StringLiteral)){
-             
+                //An array can have class 2 recurrence if RHS is an SSR expression
+                //Monotonic Range Assignment to an array variable
+           
+                if(is_simple_subscript(SubscriptExp, LoopIndex)){
+
                     return determine_Class2_recurr(ValueExpr, SSR_expr);
-               
                 }
+               
                 else{
                   
-                    //An array can have class 2 recurrence if RHS is an SSR expression
-                    //Monotonic Range Assignment to an array variable
-           
-                    if( SSR_expr != null && is_simple_subscript(SubscriptExp, LoopIndex)){
-
-                        return determine_Class2_recurr(ValueExpr, SSR_expr);
-                    }
+                
                     //Check if the array is an intermittant sequence and then evaluate for a property
-                    else if(SubscriptExp instanceof UnaryExpression){
+                    if(SubscriptExp instanceof UnaryExpression){
                         UnaryExpression subexpr = (UnaryExpression)SubscriptExp;
                         Symbol ArraySymbol = SymbolTools.getSymbolOf((ArrayAccess)DefExpr);
                         Expression array_if_tag = SymbolTools.get_IfConditionTag(ArraySymbol);

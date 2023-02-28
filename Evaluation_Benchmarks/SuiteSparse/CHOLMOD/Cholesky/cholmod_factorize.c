@@ -135,6 +135,9 @@ int CHOLMOD(factorize_p)
 	ERROR (CHOLMOD_INVALID, "matrix invalid") ;
 	return (FALSE) ;
     }
+	else{
+		printf("stype=%d, matrix valid\n", stype);
+	}
     DEBUG (CHOLMOD(dump_sparse) (A, "A for cholmod_factorize", Common)) ;
     Common->status = CHOLMOD_OK ;
 

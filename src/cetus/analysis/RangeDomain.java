@@ -1803,6 +1803,7 @@ public class RangeDomain implements Cloneable, Domain {
         Expression result = null;
         for (Symbol var : new LinkedHashSet<Symbol>(ranges.keySet())) {
            
+            //System.out.println("var: " + var+ ",curr range: " + getRange(var) + ",other: " + other.getRange(var) +"\n");
             if(!getRange(var).toString().equals("\"lambda\""))
                 result = unionRanges(getRange(var), this,
                                             other.getRange(var), other);

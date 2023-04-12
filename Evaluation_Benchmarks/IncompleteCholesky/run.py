@@ -6,18 +6,7 @@ import subprocess, sys
 print("Testing the incomplete Cholesky Factorization Benchmark")
 
 
-val = input("Compile and Run the serial code or the parallel code?\n1. Serial\n2. Parallel\n ")
-
-test_files = ''
-if(val == '1'):
-    test_files = 'IncompleteCholesky_m7.c'
-    
-elif(val == '2'):
-    test_files = 'ParIncompleteCholesky_m7.c'
-   
-else:
-    print("Invalid Input (Type either 1 or 2")
-    sys.exit()
+test_files = 'IncompleteCholesky_m7.c'
 
 
 test_result = subprocess.call(['gcc', '-fopenmp' ,'-o', 'icm7', test_files, '-lm'])#stdout=subprocess.DEVNULL,stderr=subprocess.STDOUT)

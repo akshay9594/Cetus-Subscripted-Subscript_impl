@@ -567,7 +567,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
         // Merge incoming states from predecessors.
 
         RangeDomain curr_ranges = null;
-       
+
         for (DFANode pred : node.getPreds()) {
             RangeDomain pred_range_out = node.getPredData(pred);
             // Skip BOT-state predecessors that has not been visited.
@@ -581,7 +581,8 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                 curr_ranges = new RangeDomain(pred_range_out);
             }                
             else {
-                //System.out.println("curr range: " + curr_ranges + " , prev range: " + pred_range_out +"\n");        
+                 
+                TagExpressionsWithIfCondition(pred_range_out,getIfStatement(node.getPreds()));
                 curr_ranges.unionRanges(pred_range_out);
     
             }
@@ -589,8 +590,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
 
         }
 
-        
-
+    
         if(node.getData("ir") != null && 
                         node.getData("ir").toString().contains(input_for_loop.getCondition().toString()) ){
 
@@ -608,7 +608,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                     //Preprocessing for the index expression of an array.
                     //If the array index expression is an unary expression,
                     //it might be an intermittent sequence.
-                    if( expr instanceof ArrayAccess){
+                    if(expr instanceof ArrayAccess){
                         
                         ArrayAccess access_expr = (ArrayAccess)expr;
 
@@ -619,8 +619,8 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                                 
                                 expr = new StringLiteral("lambda");
                                 array_index = ((UnaryExpression)array_index).getExpression();
-                                List<Symbol> Symbol_List = Arrays.asList(LVV,SymbolTools.getSymbolOf(array_index)); 
-                                TagSymbolWithIfCond(Symbol_List,input_for_loop, access_expr);
+                                // List<Symbol> Symbol_List = Arrays.asList(LVV,SymbolTools.getSymbolOf(array_index)); 
+                                // TagSymbolWithIfCond(Symbol_List,input_for_loop, access_expr);
                                 
                             }
                             ArraySubscriptMap.put( LVV , array_index); 
@@ -821,8 +821,15 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
 
         Symbols_to_analyze = determine_eval_order(Symbols_to_analyze,LoopRangeExpressions);
 
-
         Symbols_to_analyze.retainAll(LoopVariantVars);
+
+        Map<Symbol,Expression> TaggedSymbols = new HashMap<>();
+        for(Symbol s : LoopRangeExpressions.getSymbols()){
+            Expression e = LoopRangeExpressions.getRange(s);
+            if(IRTools.IsTagged(e)){
+                TaggedSymbols.put(s, IRTools.getTaggedExpression(e));
+            }
+        }
 
                for(Symbol sym : Symbols_to_analyze){
             
@@ -841,7 +848,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
 
                         String recurrence_class = identify_recurrence_class(sym, LVV_Value_expr ,
                                                                             LoopIdx, LoopVariantVars , DefSymbolExprs.get(sym),
-                                                                            SSR_variables,RangeValsBeforeLoop);
+                                                                            SSR_variables,RangeValsBeforeLoop,TaggedSymbols);
 
 
                         switch(recurrence_class){
@@ -970,7 +977,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                                
                                 }
                                 //Aggregation of subscript expression of an intermittent sequence
-                                else if(SymbolTools.get_IfConditionTag(sym) != null){
+                                else if(IRTools.IsTagged(LVV_Value_expr)){
                                     agg_subscript = new RangeExpression(new IntegerLiteral(0), array_subscript.clone());
                                     Loop_agg_subscripts.put(sym, agg_subscript);
 
@@ -1032,7 +1039,8 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
     private static String identify_recurrence_class(Symbol LVV, Expression ValueExpr, Expression LoopIndex, 
                                                     Set<Symbol> LoopVariantVars,
                                                     Expression DefExpr,
-                                                    List<Symbol>List_SSR_Vars, RangeDomain RangesBeforeLoop)
+                                                    List<Symbol>List_SSR_Vars, RangeDomain RangesBeforeLoop,
+                                                    Map<Symbol,Expression>TaggedSymbols)
     {
 
       //System.out.println("LVV: " + LVV + " ,value: " + ValueExpr + " ,arr def expr: " + DefExpr +"\n");
@@ -1143,12 +1151,15 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                     //Check if the array is an intermittant sequence and then evaluate for a property
                     if(SubscriptExp instanceof UnaryExpression){
                         UnaryExpression subexpr = (UnaryExpression)SubscriptExp;
-                        Symbol ArraySymbol = SymbolTools.getSymbolOf((ArrayAccess)DefExpr);
-                        Expression array_if_tag = SymbolTools.get_IfConditionTag(ArraySymbol);
-                        Expression sub_if_tag = SymbolTools.get_IfConditionTag(SymbolTools.getSymbolOf(subexpr));
+                        Expression NormalizedSubscript = subexpr.getExpression();
+                        Expression TaggedSubExpr = TaggedSymbols.get(SymbolTools.getSymbolOf(NormalizedSubscript));
+
+                        Expression array_if_tag = IRTools.get_IfConditionTag(ValueExpr);
+                        Expression sub_if_tag = IRTools.get_IfConditionTag(TaggedSubExpr);
+                        Expression inc_expr = Symbolic.subtract(TaggedSubExpr, NormalizedSubscript);
 
                             if(SSR_expr!=null && array_if_tag!=null && 
-                                sub_if_tag.equals(array_if_tag) &&
+                                sub_if_tag.equals(array_if_tag) && inc_expr.equals(new IntegerLiteral(1)) &&
                                 is_LoopVariant(array_if_tag, LoopVariantVars) &&
                                 (subexpr.getOperator().equals(UnaryOperator.POST_INCREMENT)|| 
                                 subexpr.getOperator().equals(UnaryOperator.PRE_INCREMENT))){
@@ -1571,36 +1582,6 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
     }
 
     /**
-     * Procedure to tag a symbol (ArrayAccess) with the if_Condition
-     * @param LVV  - The input Array symbol
-     * @param input_for_loop - The Loop bein analyzed
-     * @param access_expr  - The Def Expression of the array in the loop body
-     */
-   
-    private static void TagSymbolWithIfCond(List<Symbol> LVVs,ForLoop input_for_loop, ArrayAccess access_expr){
-
-        DFIterator loopbody_iter = new DFIterator<IfStatement>(input_for_loop, IfStatement.class);
-                            
-        List<IfStatement> enclosingIfStmts = new ArrayList<>();
-        while(loopbody_iter.hasNext()){
-            IfStatement ifst = (IfStatement)loopbody_iter.next();
-            if(IRTools.containsExpression(ifst, access_expr))
-                enclosingIfStmts.add(ifst);
-
-        }
-
-        if(enclosingIfStmts.size() == 1){
-            IfStatement relIfstmt = enclosingIfStmts.remove(0);
-            for(Symbol LVV : LVVs){
-                SymbolTools.SetIfConditionTag(LVV, relIfstmt.getControlExpression());
-            }
-        }
-
-        return;
-
-    }
-
-    /**
      * Checks if an input loop contains discontiguous inner loops or loops with
      * inner loops that have statements after. It is used as an eligibility test
      * for the analysis. Need to refine it and make it more general.
@@ -1802,6 +1783,44 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
 
     }
 
+    private static IfStatement getIfStatement(Set<DFANode>nodeSet){
+        
+        for(DFANode node: nodeSet){
+            if(node.getData("stmt-ref") != null && 
+               node.getData("stmt-ref") instanceof IfStatement ){
+
+               return node.getData("stmt-ref");
+            }
+            
+        }
+
+        return null;
+    }
+
+    /**
+     * Procedure to tag expressions modified within an If-then Statement with
+     * the if-condition. Requried for Intermittent sequence analysis.
+     * @param rd - Input Range Domain with Phase 1 expressions
+     * @param Ifstmt - The enclosing If-statement
+     */
+
+    private static void TagExpressionsWithIfCondition(RangeDomain rd, IfStatement Ifstmt){
+
+        if(Ifstmt == null)
+            return;
+        Expression IfCond = Ifstmt.getControlExpression();
+        Statement ThenStmt = Ifstmt.getThenStatement();
+        Set<Symbol> ModifiedSyms = DataFlowTools.getDefSymbol(ThenStmt);
+       
+        for(Symbol sym : rd.getSymbols()){
+            Expression expr = rd.getRange(sym);
+            if(ModifiedSyms.contains(sym)){
+                IRTools.SetIfConditionTag(expr, IfCond);
+            }
+        }
+
+    
+    }
    
 
     private static boolean is_LoopVariant(Expression expr, Set<Symbol> Def_Syms){

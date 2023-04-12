@@ -18,6 +18,10 @@ int* col;
 double* val;
 double* val_par;
 
+int* rowP;
+int* colP;
+double* valP;
+
 int convertStrtoArr(char* str)
 {
     // get length of string str
@@ -142,44 +146,49 @@ int main(int argc, char *argv[]) {
    col = malloc(sizeof(int)*nonzeros);
    val = malloc(sizeof(double)*nonzeros);
 
+   rowP = malloc(sizeof(int)*nonzeros);
+   colP = malloc(sizeof(int)*nonzeros);
+   valP = malloc(sizeof(double)*nonzeros);
+
    col[0]=0;
    int x,y,col_num=0;
 
    for(j=0; j<nonzeros; j++){
       y = col_val[j];
       y=y-1;
-      // x = row_val[j];
-      // x=x-1;
+      x = row_val[j];
+      x=x-1;
       if(y==col_num){
          val[nnzCnt]=nnz_val[nnzCnt];
-         //row[nnzCnt]=x;
+         valP[nnzCnt]=nnz_val[nnzCnt];
+
+         row[nnzCnt]=x;
+         rowP[nnzCnt]=x;
+
          colCnt++; nnzCnt++;
       }
         else{//New col
          col[col_num+1]=col[col_num]+colCnt;
+         colP[col_num+1]=colP[col_num]+colCnt;
+
          col_num++;
          colCnt=1;
          val[nnzCnt]=nnz_val[nnzCnt];
-         //row[nnzCnt]=x;
+         valP[nnzCnt]=nnz_val[nnzCnt];
+
+         row[nnzCnt]=x;
+         rowP[nnzCnt]=x;
          nnzCnt++;
       }
       
    
    }
   
-   for(i=0; i< nonzeros; i++){
-      for(j=col[i]; j< col[i+1]; j++){
-          x = row_val[j];
-          x=x-1;
-         row[j] = x;
-         //printf("row[%d]=%d\n", j, row[j]);
-      }
-   }
 
    col[num_cols]= col[num_cols - 1] + colCnt;//last col
 
    int num_runs = 1;
-   double seconds, total_time=0.0;
+   double seconds, total_time=0.0,total_timeP=0.0;
 
    for(k=0; k < num_runs; k++){
 
@@ -189,13 +198,32 @@ int main(int argc, char *argv[]) {
 
       gettimeofday(&end, NULL);
 
-      double seconds = (end.tv_sec + (double)end.tv_usec/1000000) - (start.tv_sec + (double)start.tv_usec/1000000); 
+      seconds = (end.tv_sec + (double)end.tv_usec/1000000) - (start.tv_sec + (double)start.tv_usec/1000000); 
 
       total_time+= seconds;
 
+      gettimeofday(&start,NULL);
+
+      ic0_csr_parInner(num_cols,  valP, colP, rowP);
+
+      gettimeofday(&end, NULL);
+
+      seconds = (end.tv_sec + (double)end.tv_usec/1000000) - (start.tv_sec + (double)start.tv_usec/1000000); 
+
+      total_timeP+= seconds;
+
    }
 
+   int failed = 0;
+    for (int i = 0; i < nnzCnt; ++i) {
+      if(val[i]-valP[i] > 10e-4) failed=1;
+    }
+
+    if(failed == 1)
+      printf("Verification failed!!!");
+
    printf("Time taken by the Serial kernel for %d runs = %f s\n", num_runs,total_time/num_runs);
+   printf("Time taken by the parallel kernel for %d runs = %f s\n", num_runs,total_timeP/num_runs);
 
 
     fclose(fp);

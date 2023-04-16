@@ -11,7 +11,7 @@ technique has been described in detail in the listed publications.
 1. Akshay Bhosale and Rudolf Eigenmann. 2021. On the automatic parallelization of subscripted 
    subscript patterns using array property analysis. In Proceedings of the ACM International 
    Conference on Supercomputing (ICS '21). Association for Computing Machinery, New York, NY, 
-   USA, 392–403. [![DOI](https://doi.org/10.1145/3447818.3460424)
+   USA, 392–403. (https://doi.org/10.1145/3447818.3460424)
 
 
 # Downloading and Running Cetus:

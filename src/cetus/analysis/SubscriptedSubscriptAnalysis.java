@@ -1,7 +1,7 @@
 
 package cetus.analysis;
 import cetus.hir.*;
-
+import cetus.hir.PragmaAnnotation.Range;
 
 import java.util.*;
 
@@ -65,6 +65,7 @@ public class SubscriptedSubscriptAnalysis extends AnalysisPass{
            // System.out.println( "proc: " + procedure.getName()+ ", proc props: " + proc_info.getProcedureAggRangeVals(procedure) +"\n");
             
         }
+        
     
     }
 
@@ -595,6 +596,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                         node.getData("ir").toString().contains(input_for_loop.getCondition().toString()) ){
 
             LoopLVVs = node.getData("loop-variants"); 
+         
             Set<Expression> DefExprs = DataFlowTools.getDefMap(input_for_loop.getBody()).keySet();
                   
                for(Expression expr: DefExprs){
@@ -645,8 +647,6 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                         
                     //}
                 }
-
-                //System.out.println("init curr ranges: " + curr_ranges +"\n");
 
             Initial_syms = curr_ranges.getSymbols();
         }
@@ -785,6 +785,8 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
         List<Symbol> SSR_variables = new ArrayList<Symbol>();
         Expression LoopIdx = LoopTools.getIndexVariable(input_for_loop);
 
+        //System.out.println("LVVs: " + LoopVariantVars +":"+ LoopRangeExpressions +"\n");
+
         RangeExpression LoopIdxRange = getLoopIndexRange(input_for_loop, RangeValsBeforeLoop);
 
         Expression LoopIterationCount = Symbolic.add(Symbolic.subtract(LoopIdxRange.getUB() , LoopIdxRange.getLB()), new IntegerLiteral(1));
@@ -831,6 +833,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
             }
         }
 
+            //System.out.println("Syms: " + Symbols_to_analyze+"\n");
                for(Symbol sym : Symbols_to_analyze){
             
                         //Check if the symbol is the loop index variable
@@ -864,7 +867,7 @@ private static void SubSubAnalysis(ForLoop input_for_loop, CFGraph Loop_CFG,
                                 //System.out.println("inc expr: " + increment_expression + "," + RangeValsBeforeLoop +"\n");
                                 
                                 if(LoopTools.isOutermostLoop(input_for_loop) &&
-                                   (RangeValsBeforeLoop!=null) 
+                                   (RangeValsBeforeLoop!=null && RangeValsBeforeLoop.getRange(sym) != null) 
                                   ){
                                     ValueBeforeLoop = RangeValsBeforeLoop.getRange(sym);
                                     aggregate_lb = Symbolic.add(aggregate_lb, ValueBeforeLoop);

@@ -30,6 +30,7 @@ public class ProcInfo {
     }
 
     public static Map<Symbol, String> getProcedureProps(Procedure proc){
+        
         if(Procedure_Props_Info == null)
             return new HashMap<>();
         else

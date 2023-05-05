@@ -2,9 +2,9 @@
     Subscripted Subscript example from Gromacs - SPEC CPU 2006
 */
 
-// #include <stdio.h>
-// #include <math.h>
-// #include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
+#include <stdlib.h>
 
 #define N 30000
 #define M 10000

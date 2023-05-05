@@ -383,6 +383,7 @@ public class RangeTest implements DDTest {
 
             while (perm_iter.hasNext() && !placed) {
                 Loop perm_loop = (Loop)perm_iter.next();
+
                 if (test1(loop, inner_permuted)) {
                     parallel_loops.put(loop, TEST1_PASS);
                     placed = true;
@@ -432,7 +433,7 @@ public class RangeTest implements DDTest {
                 } else if (test2(loop, inner_permuted)) {
                     parallel_loops.put(loop, TEST2_PASS);
                 }//Following part handles testing for subscripted subscript loops
-                //with non-relevant inner loops where f and g exclusively subscript arrays
+                //with non-relevant inner loops where f and g exclusively contain subscript arrays
                 else if(inner_permuted.isEmpty() &&
                         IRTools.containsClass(f, ArrayAccess.class) &&
                         IRTools.containsClass(g, ArrayAccess.class)) 
@@ -447,7 +448,7 @@ public class RangeTest implements DDTest {
                             parallel_loops.put(loop, TEST4_PASS);       //Dependencing testing for subscripted subscripts
                             placed = true;
                             ParallelSubSubLoops.add(loop);
-                            System.out.println( "\nloop: "+ LoopTools.getLoopName((ForLoop)loop) +"\n");
+                            //System.out.println( "\nloop: "+ LoopTools.getLoopName((ForLoop)loop) +"\n");
 
                         }
 
@@ -704,7 +705,7 @@ public class RangeTest implements DDTest {
     private boolean test3(Loop loop, Set<Loop> inner_permloops){
 
         boolean ret = false;
-    
+
         ret = ( IRTools.containsClass(f, ArrayAccess.class) && 
                 IRTools.containsClass(g, ArrayAccess.class) &&
                 (inner_permloops.size() <= 1) &&
@@ -780,13 +781,15 @@ public class RangeTest implements DDTest {
         //System.out.println("f: " + e1 + ",g: " + e2 + "result = " + f_stmt +"\n");
         
         ForLoop Outerloop = (ForLoop)loop;
-        Procedure Loop_Proc = Outerloop.getProcedure();
+        // Procedure Loop_Proc = Outerloop.getProcedure();
         Expression OuterLoopstride =  LoopTools.getIncrementExpression(Outerloop);
         RangeExpression Outerloop_range = getLoopRange(Outerloop);
+        Expression LoopUB = Outerloop_range.getUB();
 
         Map<Symbol, String> VarProps_Map = RangeAnalysis.query(Outerloop, "Properties");
         Map<Symbol,Object> AggSubs_Map =  RangeAnalysis.query(Outerloop, "Aggregate Subscripts");
        
+        //System.out.println("props: " + VarProps_Map +"\n");
         if(VarProps_Map.isEmpty())
             return false;
         String Outerloop_ant = (Outerloop.getAnnotation(PragmaAnnotation.class, "name")).toString();
@@ -808,7 +811,6 @@ public class RangeTest implements DDTest {
      
         if(Innerloops.size() == 0){
             Symbol SubArray = SymbolTools.getSymbolOf(e1);
-            Expression LoopUB = Outerloop_range.getUB();
 
             if( VarProps_Map.get(SubArray) != null &&
                 VarProps_Map.get(SubArray).equals("STRICT_MONOTONIC"))
@@ -880,8 +882,9 @@ public class RangeTest implements DDTest {
 
             ArrayAccess index_array = IRTools.getExpressionsOfType(gmin, ArrayAccess.class).get(0);
 
+
             if( Symbolic.gt(difference, new IntegerLiteral(0)).equals(difference)){
-                
+
                 String property = VarProps_Map.get(SymbolTools.getSymbolOf(index_array));
 
                 RangeExpression Subscript_range = 
@@ -889,10 +892,12 @@ public class RangeTest implements DDTest {
 
                 
                 if( property != null){
-                    if(property.equals("MONOTONIC") || property.equals("STRICT_MONOTONIC") &&
-                            Subscript_range.equals(Outerloop_range))
+                    if(property.equals("MONOTONIC") || property.equals("STRICT_MONOTONIC") 
+                            /*Subscript_range.equals(Outerloop_range)*/){
 
-                         return true;
+                        return CheckPropertyAndLoopBounds(Subscript_range, LoopUB, Outerloop);
+                         //return true;
+                    }
                     else 
                         return false;
                 }

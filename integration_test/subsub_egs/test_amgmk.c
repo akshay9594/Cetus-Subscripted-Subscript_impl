@@ -2,8 +2,8 @@
  Subscripted subscript example from the Algebraic Multigrid kernel (Amgmk)
 */
 
-// #include <stdio.h>
-// #include <math.h>
+#include <stdio.h>
+#include <math.h>
 
 #define N 30000
 

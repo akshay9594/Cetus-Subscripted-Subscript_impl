@@ -8,44 +8,21 @@
   #include <math.h>
   #include <stdlib.h>
  #include "header.h"
+  static void calc();
 
 int main(){
 
   double tmp[2][LX1][LX1];
   double tmor[LELT], tx[LELT];
-  int ig1, ig2, ig3, ig4, ie, iface, il1, il2, il3, il4;
+  int ig1, ig2, ig3, ig4, ie, iface, il1, il2, il3, il4, ntemp;
   int nnje, ije1, ije2, col, i, j, ig, il;
   int k;
   v_end[0] = 0;
   v_end[1] = LX1-1;
  
-   int i,j, k, ntemp, temp, dtemp, temp1,temp2;
-   int g1m1_s[6][5][5][5];
-   int g4m1_s[6][5][5][5];
-
-  for (i=0; i<5; i ++ )
-	{
-		xfrac[i]=((zgm1[i]*0.5)+0.5);
-	}
-
-  for (int isize=0; isize<6; isize ++ ){
-
-    temp = pow(2.0, (-isize-2));
-    dtemp = 1.0/temp;
-    temp1 = temp*temp*temp;
-    temp2 = temp*temp;
-		for (k=0; k<5; k ++ ){
-			for (j=0; j<5; j ++ ){
-				for (i=0; i<5; i ++ )
-		    {
-					g1m1_s[isize][k][j][i]=(g1m1_s[isize][k][j][i]/wxm1[i]);
-          g4m1_s[isize][k][j][i]=(g1m1_s[isize][k][j][i]/wxm1[i]);
-				
-				}
-			}
-		}
-	}
-
+   
+   calc();
+   
      for (k = 0; k < LELT; k++) {
     ntemp = k*LX1*LX1*LX1;
     for (j = 0; j < LX1; j++) {
@@ -275,7 +252,37 @@ int main(){
 
 
  }
+
+ static void calc(){
+
+  int i,j, k, ntemp, temp, dtemp, temp1,temp2;
+   int g1m1_s[6][5][5][5];
+   int g4m1_s[6][5][5][5];
+
+  for (i=0; i<5; i ++ )
+	{
+		xfrac[i]=((zgm1[i]*0.5)+0.5);
+	}
+
+  for (int isize=0; isize<6; isize ++ ){
+
+    temp = pow(2.0, (-isize-2));
+    dtemp = 1.0/temp;
+    temp1 = temp*temp*temp;
+    temp2 = temp*temp;
+		for (k=0; k<5; k ++ ){
+			for (j=0; j<5; j ++ ){
+				for (i=0; i<5; i ++ )
+		    {
+					g1m1_s[isize][k][j][i]=(g1m1_s[isize][k][j][i]/wxm1[i]);
+          g4m1_s[isize][k][j][i]=(g1m1_s[isize][k][j][i]/wxm1[i]);
+				
+				}
+			}
+		}
+	}
   
+ }
 
 static int r_init(double a[], int n, double _const)
 {

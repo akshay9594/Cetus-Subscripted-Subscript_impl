@@ -7,8 +7,7 @@
   #include <stdio.h>
   #include <math.h>
   #include <stdlib.h>
- #include "header.h"
-  static void calc();
+  #include "header.h"
 
 int main(){
 
@@ -19,9 +18,7 @@ int main(){
   int k;
   v_end[0] = 0;
   v_end[1] = LX1-1;
- 
-   
-   calc();
+
    
      for (k = 0; k < LELT; k++) {
     ntemp = k*LX1*LX1*LX1;

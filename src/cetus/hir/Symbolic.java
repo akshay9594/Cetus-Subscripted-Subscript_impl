@@ -70,25 +70,35 @@ public class Symbolic extends SimpleExpression {
     }
 
     /**
-     * Simplifies a binary expression of the form - x*[lb:ub]
-     * by multiplying x with lb and ub.
+     * Simplifies a binary expression of the form - x*[lb:ub] and x+[lb:ub]
+     * by multiplying or adding x with lb and ub. x can be an array.
      * @param expr_re - the input expression containing a range expression
      * @return simplified expression
      */
-    public static Expression simplifyBinaryRangeExpression(Expression expr_re){
+    public static Expression simplifyBinaryRangeExpression(BinaryExpression expr_re){
 
-       
-        List<RangeExpression> List_remainder_res = IRTools.getExpressionsOfType(expr_re, RangeExpression.class);
-        if(List_remainder_res.size() > 1)
+        List<RangeExpression> List_range_exprs = IRTools.getExpressionsOfType(expr_re, RangeExpression.class);
+        Expression simplified_lb = null;
+        Expression simplified_ub = null;
+        
+        if(List_range_exprs.size() > 1)
             return expr_re;
             
-        RangeExpression remainder_re = List_remainder_res.iterator().next();
-        Expression remainder_re_coeff = Symbolic.getExpressionCoefficient(expr_re, remainder_re);
-        Expression simplified_lb = Symbolic.multiply(remainder_re.getLB(), remainder_re_coeff);
-        Expression simplified_ub = Symbolic.multiply(remainder_re.getUB(), remainder_re_coeff);
-        expr_re = new RangeExpression(simplified_lb, simplified_ub);
+        RangeExpression range_expr_opr = List_range_exprs.iterator().next();
+       
+        if(expr_re.getOperator().equals(BinaryOperator.ADD)){
+            Expression id_array = Symbolic.subtract(expr_re, range_expr_opr);
+            simplified_lb = Symbolic.add(range_expr_opr.getLB(), id_array);
+            simplified_ub = Symbolic.add(range_expr_opr.getUB(), id_array);
+        }
+        else{
+
+            Expression remainder_re_coeff = Symbolic.getExpressionCoefficient(expr_re, range_expr_opr);
+            simplified_lb = Symbolic.multiply(range_expr_opr.getLB(), remainder_re_coeff);
+            simplified_ub = Symbolic.multiply(range_expr_opr.getUB(), remainder_re_coeff);
+        }
         
-        return expr_re;
+        return new RangeExpression(simplified_lb, simplified_ub);
     }
 
     /**

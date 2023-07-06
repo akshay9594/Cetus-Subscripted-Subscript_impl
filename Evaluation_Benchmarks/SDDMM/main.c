@@ -71,10 +71,10 @@ void sddmm_CPU_CSR(int* row_ptr, int* col_ind, double* nnz_val, double* W,
     int i,r, ind,t,holder;
     double sm;
 
-     holder =0;
+     holder=1;
      row_ptr[0]=0;
      r = row_val[0];
-      for(i =0; i < nonzeros; i++){
+      for(i=0; i < nonzeros; i++){
         if(row_val[i] != r){
             row_ptr[holder++] = i;
            // rowP[holder] = i;

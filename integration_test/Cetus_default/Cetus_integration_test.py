@@ -15,7 +15,7 @@ if(val == 'Y'):
     list_failed_tests = []
 
     for test_file in files:
-        test_result = subprocess.call(['../../bin/cetus', " -subsub_analysis -normalize-loops " + test_file],stdout=subprocess.DEVNULL,stderr=subprocess.STDOUT)
+        test_result = subprocess.call(['../../bin/cetus', test_file],stdout=subprocess.DEVNULL,stderr=subprocess.STDOUT)
         if(test_result != 0):
             failed_tests = failed_tests + 1
             list_failed_tests.append(test_file)

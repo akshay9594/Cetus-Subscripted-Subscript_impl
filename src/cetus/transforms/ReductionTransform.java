@@ -450,10 +450,11 @@ public class ReductionTransform extends TransformPass {
             }
             // Allocates private copy of the array.
             Declaration private_decl =
-                    allocatePrivateCopy(loop, e, op, private_span);
+                    allocatePrivateCopy(loop, e, op, private_span,i);
             if (private_decl == null) {
                 continue;
             }
+           
             Symbol private_array = (Symbol)private_decl.getChildren().get(0);
             parallel_region.addDeclaration(private_decl);
             // Prepares array accesses using the allocatd private copy for
@@ -550,7 +551,7 @@ public class ReductionTransform extends TransformPass {
      */
     @SuppressWarnings("unchecked")
     private Declaration allocatePrivateCopy(ForLoop loop, Expression e,
-            String op, List<Expression> span) {
+            String op, List<Expression> span, int num_expr) {
         Declaration ret = null;
         if (!op.equals("+") && !op.equals("*")) {
             return ret;
@@ -563,7 +564,7 @@ public class ReductionTransform extends TransformPass {
             // Discard the item since there exist "unallowed" data types.
             return ret;
         }
-        NameID private_name = SymbolTools.getNewName("reduce", loop);
+        NameID private_name = SymbolTools.getNewName("reduce"+num_expr, loop);
         if (option_dynamic_copy) {
             Identifier alloc_name = null;
             alloc_name = SymbolTools.getOrphanID("malloc");

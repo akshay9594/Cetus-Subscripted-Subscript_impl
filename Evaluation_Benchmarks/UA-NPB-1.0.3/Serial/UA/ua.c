@@ -245,12 +245,6 @@ int main(int argc, char *argv[])
 
   double t2, trecs[t_last+1];
   char *t_names[t_last+1];
-
-  int max_num_threads;
-  #pragma omp parallel
-     #pragma omp master
-        max_num_threads = omp_get_num_threads();
-      printf("\nmax_num_threads = %d\n ",max_num_threads );
   //---------------------------------------------------------------------
   // Read input file (if it exists), else take
   // defaults from parameters

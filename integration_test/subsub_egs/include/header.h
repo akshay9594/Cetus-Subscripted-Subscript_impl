@@ -1,9 +1,9 @@
 //-------------------------------------------------------------------------//
 //                                                                         //
-//  This benchmark is a serial C version of the NPB UA code. This C        //
-//  version is developed by the Center for Manycore Programming at Seoul   //
-//  National University and derived from the serial Fortran versions in    //
-//  "NPB3.3-SER" developed by NAS.                                         //
+//  This benchmark is an OpenMP C version of the NPB UA code. This OpenMP  //
+//  C version is developed by the Center for Manycore Programming at Seoul //
+//  National University and derived from the OpenMP Fortran versions in    //
+//  "NPB3.3-OMP" developed by NAS.                                         //
 //                                                                         //
 //  Permission to use, copy, distribute and modify this software for any   //
 //  purpose with or without fee is hereby granted. This software is        //
@@ -15,7 +15,8 @@
 //                                                                         //
 //           http://www.nas.nasa.gov/Software/NPB/                         //
 //                                                                         //
-//  Send comments or suggestions for this C version to cmp@aces.snu.ac.kr  //
+//  Send comments or suggestions for this OpenMP C version to              //
+//  cmp@aces.snu.ac.kr                                                     //
 //                                                                         //
 //          Center for Manycore Programming                                //
 //          School of Computer Science and Engineering                     //
@@ -31,9 +32,11 @@
 //          and Jaejin Lee                                                 //
 //-------------------------------------------------------------------------//
 
-#include "npbparams.h"
-#include "type.h"
-#include <stdlib.h>
+
+#define LELT           8800
+
+#define LMOR           334600
+
 // Array dimensions     
 #define LX1       5
 #define LNJE      2
@@ -119,39 +122,12 @@ extern int size_e      [LELT];
 extern int front       [LELT];
 extern int action      [LELT];
 
-// logical arrays associated with vertices
-/* common /vlg/ */
-extern logical ifpcmor[8*LELT];
-
-// logical arrays associated with edge
-/* common /edgelg/ */
-extern logical eassign  [LELT][12];
-extern logical ncon_edge[LELT][12];
-extern logical if_1_edge[LELT][12]; 
-
-// logical arrays associated with elements
-/* common /facelg/ */
-extern logical skip    [LELT];
-extern logical ifcoa   [LELT];
-extern logical ifcoa_id[LELT];
-
-// logical arrays associated with element faces
-/* common /masonl/ */
-extern logical fassign[LELT][NSIDES];
-extern logical edgevis[LELT][NSIDES][4];
 
 // small arrays
 /* common /transr/ */
 extern double qbnew[2][LX1][LX1-2];
 extern double bqnew[2][LX1-2][LX1-2];
 
-/* common /pcr/ */
-extern double pcmor_nc1[REFINE_MAX][2][2][LX1][LX1];
-extern double pcmor_nc2[REFINE_MAX][2][2][LX1][LX1];
-extern double pcmor_nc0[REFINE_MAX][2][2][LX1][LX1];
-extern double pcmor_c  [REFINE_MAX][LX1][LX1];
-extern double tcpre    [LX1][LX1];
-extern double pcmor_cor[REFINE_MAX][8];
 
 // gauss-labotto and gauss points
 /* common /gauss/ */
@@ -170,16 +146,6 @@ extern double zc[LELT][8];
 extern double xc_new[LELT][8];
 extern double yc_new[LELT][8];
 extern double zc_new[LELT][8];
-
-// dr/dx, dx/dr  and Jacobian
-/* common /giso/ */
-extern double jacm1_s[REFINE_MAX][LX1][LX1][LX1];
-extern double rxm1_s[REFINE_MAX][LX1][LX1][LX1];
-extern double xrm1_s[REFINE_MAX][LX1][LX1][LX1];
-
-// mass matrices (diagonal)
-/* common /mass/ */
-extern double bm1_s[REFINE_MAX][LX1][LX1][LX1];
 
 // dertivative matrices d/dr
 /* common /dxyz/ */
@@ -201,13 +167,6 @@ extern double map4  [LX1];
 // collocation location within an element
 /* common /xfracs/ */
 extern double xfrac[LX1];
-
-// used in laplacian operator
-/* common /gmfact/ */
-extern double g1m1_s[REFINE_MAX][LX1][LX1][LX1]; 
-extern double g4m1_s[REFINE_MAX][LX1][LX1][LX1];
-extern double g5m1_s[REFINE_MAX][LX1][LX1][LX1];
-extern double g6m1_s[REFINE_MAX][LX1][LX1][LX1];
       
 // We store some tables of useful topological constants
 // These constants are intialized in a block data 'top_constants'
@@ -240,7 +199,6 @@ extern int face_ld[3];
 
 // Timer parameters
 /* common /timing/ */
-extern logical timeron;
 #define t_total       1
 #define t_init        2
 #define t_convect     3
@@ -251,51 +209,9 @@ extern logical timeron;
 #define t_adaptation  8
 #define t_transf2     9
 #define t_add2        10
-#define t_last        11
+#define t_last        10
 
-#define btest(i,p)  (i & (1 << p))
+// Locks used for atomic updates
+/* common /sync_cmn/ */
 
-
-void convect(logical ifmortar);
-void diffusion(logical ifmortar);
-void laplacian(double r[LX1][LX1][LX1], double u[LX1][LX1][LX1], int sizei);
-void adaptation(logical *ifmortar, int step);
-void move();
-void mortar();
-logical ifsame(int iel, int i, int ntemp, int j);
-void setuppc();
-void setpcmo_pre();
-void setpcmo();
-void reciprocal(double a[], int n);
-void r_init(double a[], int n, double _const);
-void nr_init(int a[], int n, int _const);
-void l_init(logical a[], int n, logical _const);
-void ncopy(int a[], int b[], int n);
-void copy(double a[], double b[], int n);
-void adds2m1(double a[], double b[], double c1, int n);
-void adds1m1(double a[], double b[], double c1, int n);
-void col2(double a[], double b[], int n);
-void nrzero(int na[], int n);
-void add2(double a[], double b[], int n);
-double calc_norm();
-void parallel_add(int frontier[]);
-void dssum();
-void facev(double a[LX1][LX1][LX1], int iface, double val);
-void transf(double tmor[], double tx[]);
-void transfb(double tmor[], double tx[]);
-void transfb_cor_e(int n, double *tmor, double tx[LX1][LX1][LX1]);
-void transfb_cor_f(int n, double *tmor, double tx[LX1][LX1][LX1]);
-void transf_nc(double tmor[LX1][LX1], double tx[LX1][LX1]);
-void transfb_nc0(double tmor[LX1][LX1], double tx[LX1][LX1][LX1]);
-void transfb_nc2(double tmor[LX1][LX1], double tx[LX1][LX1]);
-void transfb_nc1(double tmor[LX1][LX1], double tx[LX1][LX1]);
-void transfb_c(double tx[]);
-void transfb_c_2(double tx[]);
-void verify(char *Class, logical *verified);
-void create_initial_grid();
-void coef();
-void geom1();
-void setdef();
-void prepwork();
-void top_constants();
-
+static int r_init(double a[], int n, double _const);

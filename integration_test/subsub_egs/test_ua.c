@@ -7,7 +7,7 @@
   #include <stdio.h>
   #include <math.h>
   #include <stdlib.h>
-  #include "header.h"
+  #include "./include/header.h"
 
 int main(){
 
